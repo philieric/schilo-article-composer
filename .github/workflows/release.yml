@@ -40,6 +40,7 @@ jobs:
 
       - name: Installer WiX v5
         id: wix
+        working-directory: installer
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 5.0.2
@@ -49,6 +50,9 @@ jobs:
             exit 1
           }
           & $wixExe --version
+          # "wix extension add" enregistre l'extension dans le dossier courant (comme un
+          # manifeste dotnet tool) : doit tourner dans le MEME working-directory que
+          # "wix build" (installer/), sinon WIX0144 "extension could not be found".
           & $wixExe extension add WixToolset.UI.wixext/5.0.2
           "wixExe=$wixExe" >> $env:GITHUB_OUTPUT
 
