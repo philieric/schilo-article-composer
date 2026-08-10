@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit.Highlighting;
@@ -219,7 +220,7 @@ public partial class MainWindow : FluentWindow
 
         try
         {
-            var result = _parser.Parse(dialog.FileName);
+            var (result, fromLiveWord) = ParseWithWordLockFallback(dialog.FileName);
 
             _sections.Clear();
             foreach (var section in result.Sections)
@@ -233,7 +234,10 @@ public partial class MainWindow : FluentWindow
             var ignored = result.ParagraphsBeforeFirstHeading > 0
                 ? $" ({result.ParagraphsBeforeFirstHeading} paragraphe(s) avant le premier titre H2 ignore(s) — page de garde, texte des versets, etc.)"
                 : string.Empty;
-            StatusText.Text = $"{_sections.Count} section(s) detectee(s).{ignored}";
+            var liveWordNote = fromLiveWord
+                ? " (lu depuis la version actuellement ouverte dans Word, y compris modifications non enregistrees)"
+                : string.Empty;
+            StatusText.Text = $"{_sections.Count} section(s) detectee(s).{ignored}{liveWordNote}";
 
             if (_sections.Count == 0)
             {
@@ -247,10 +251,46 @@ public partial class MainWindow : FluentWindow
                 SectionsList.SelectedIndex = 0;
             }
         }
+        catch (IOException)
+        {
+            MessageBox.Show(
+                "Ce fichier est ouvert dans un autre programme et n'a pas pu etre lu (y compris via Word).\n" +
+                "Ferme-le (ou enregistre-le) puis reessaie.",
+                "Fichier verrouille", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
         catch (Exception ex)
         {
             MessageBox.Show($"Impossible de lire ce document :\n{ex.Message}", "Erreur",
                 MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    // Le fichier peut etre verrouille en exclusif (FileShare.None) par Word ou par une
+    // synchronisation OneDrive en cours, auquel cas aucun mode de partage cote lecteur
+    // ne peut l'ouvrir. Si c'est Word qui le detient, on lui demande une copie
+    // temporaire de son contenu actuel plutot que d'echouer.
+    private (DocxParseResult Result, bool FromLiveWord) ParseWithWordLockFallback(string path)
+    {
+        try
+        {
+            return (_parser.Parse(path), false);
+        }
+        catch (IOException)
+        {
+            var tempCopyPath = WordLockBridge.TryGetUnlockedCopy(path);
+            if (tempCopyPath == null)
+            {
+                throw;
+            }
+
+            try
+            {
+                return (_parser.Parse(tempCopyPath), true);
+            }
+            finally
+            {
+                try { File.Delete(tempCopyPath); } catch { /* best effort */ }
+            }
         }
     }
 
