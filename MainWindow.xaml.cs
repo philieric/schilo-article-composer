@@ -35,11 +35,20 @@ public partial class MainWindow : FluentWindow
     private static Version GetCurrentVersion()
         => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
 
+    private static readonly TimeSpan UpdateCheckThrottle = TimeSpan.FromHours(24);
+
     private async Task CheckForUpdatesOnStartupAsync()
     {
+        var lastCheck = UpdateCheckState.GetLastCheckUtc();
+        if (lastCheck.HasValue && DateTime.UtcNow - lastCheck.Value < UpdateCheckThrottle)
+        {
+            return; // Deja verifie il y a moins de 24h : on evite de solliciter l'API GitHub inutilement.
+        }
+
         try
         {
             var result = await _updateChecker.CheckForUpdateAsync(GetCurrentVersion());
+            UpdateCheckState.SetLastCheckNowUtc();
             if (result.Status == UpdateCheckStatus.UpdateAvailable && result.Update != null)
             {
                 OfferUpdate(result.Update);
@@ -47,7 +56,8 @@ public partial class MainWindow : FluentWindow
         }
         catch
         {
-            // Verification silencieuse au demarrage : pas de connexion, API indisponible, etc. -> on ignore.
+            // Verification silencieuse au demarrage : pas de connexion, API indisponible, etc. -> on ignore,
+            // et on NE marque PAS la verification comme faite pour pouvoir reessayer au prochain lancement.
         }
     }
 
@@ -69,6 +79,7 @@ public partial class MainWindow : FluentWindow
         try
         {
             var result = await _updateChecker.CheckForUpdateAsync(GetCurrentVersion());
+            UpdateCheckState.SetLastCheckNowUtc();
             switch (result.Status)
             {
                 case UpdateCheckStatus.UpdateAvailable when result.Update != null:
