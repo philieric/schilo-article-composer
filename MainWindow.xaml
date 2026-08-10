@@ -32,12 +32,14 @@
             </StackPanel>
         </StackPanel>
 
-        <!-- Navigation : SchiloIA | Article Composer -->
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
-            <Button x:Name="NavSchiloIaButton" Content="SchiloIA" Click="NavSchiloIaButton_Click" />
-            <Button x:Name="NavArticleComposerButton" Content="Article Composer" Click="NavArticleComposerButton_Click"
+        <!-- Navigation : SchiloIA | Article Composer .......... Mises a jour | A propos -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10" LastChildFill="False">
+            <Button x:Name="NavSchiloIaButton" DockPanel.Dock="Left" Content="SchiloIA" Click="NavSchiloIaButton_Click" />
+            <Button x:Name="NavArticleComposerButton" DockPanel.Dock="Left" Content="Article Composer" Click="NavArticleComposerButton_Click"
                     IsEnabled="False" />
-        </StackPanel>
+            <Button x:Name="AboutButton" DockPanel.Dock="Right" Content="A propos" Click="AboutButton_Click" Margin="0" />
+            <Button x:Name="CheckUpdateButton" DockPanel.Dock="Right" Content="Verifier les mises a jour" Click="CheckUpdateButton_Click" />
+        </DockPanel>
 
         <!-- Zone de contenu : bascule entre l'ecran Article Composer et l'ecran SchiloIA -->
         <Grid>
@@ -48,8 +50,6 @@
                         <Button x:Name="OpenButton" DockPanel.Dock="Left" Content="Ouvrir un document Word (.docx)..." Click="OpenButton_Click" />
                         <Button x:Name="ExportButton" DockPanel.Dock="Left" Content="Exporter XML..." Click="ExportButton_Click" IsEnabled="False" />
                         <Button x:Name="HtmlTagColorButton" DockPanel.Dock="Right" Content="Couleur tag HTML..." Click="HtmlTagColorButton_Click" Margin="0" />
-                        <Button x:Name="AboutButton" DockPanel.Dock="Right" Content="A propos" Click="AboutButton_Click" />
-                        <Button x:Name="CheckUpdateButton" DockPanel.Dock="Right" Content="Verifier les mises a jour" Click="CheckUpdateButton_Click" />
                         <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="15,0,0,0" Foreground="#666" />
                     </DockPanel>
 
