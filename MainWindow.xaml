@@ -32,12 +32,11 @@
             </StackPanel>
         </StackPanel>
 
-        <!-- Navigation : SchiloIA | Article Composer | Parametrage | Mises a jour | A propos -->
+        <!-- Navigation : SchiloIA | Article Composer | Mises a jour | A propos -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
             <Button x:Name="NavSchiloIaButton" Content="SchiloIA" Click="NavSchiloIaButton_Click" />
             <Button x:Name="NavArticleComposerButton" Content="Article Composer" Click="NavArticleComposerButton_Click"
                     IsEnabled="False" />
-            <Button x:Name="SettingsButton" Content="⚙ Parametrage..." Click="SettingsButton_Click" />
             <Button x:Name="CheckUpdateButton" Content="Verifier les mises a jour" Click="CheckUpdateButton_Click" />
             <Button x:Name="AboutButton" Content="A propos" Click="AboutButton_Click" />
         </StackPanel>
@@ -47,11 +46,12 @@
             <Grid x:Name="ArticleComposerPanel">
                 <DockPanel>
                     <!-- Barre du haut -->
-                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
-                        <Button x:Name="OpenButton" Content="Ouvrir un document Word (.docx)..." Click="OpenButton_Click" />
-                        <Button x:Name="ExportButton" Content="Exporter XML..." Click="ExportButton_Click" IsEnabled="False" />
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10">
+                        <Button x:Name="OpenButton" DockPanel.Dock="Left" Content="Ouvrir un document Word (.docx)..." Click="OpenButton_Click" />
+                        <Button x:Name="ExportButton" DockPanel.Dock="Left" Content="Exporter XML..." Click="ExportButton_Click" IsEnabled="False" />
+                        <Button x:Name="HtmlTagColorButton" DockPanel.Dock="Right" Content="Couleur tag HTML..." Click="HtmlTagColorButton_Click" Margin="0" />
                         <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="15,0,0,0" Foreground="#666" />
-                    </StackPanel>
+                    </DockPanel>
 
                     <!-- Barre de statut -->
                     <TextBlock x:Name="StatusText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="#666" TextWrapping="Wrap" />
