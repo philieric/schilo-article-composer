@@ -34,6 +34,8 @@
             <Button x:Name="OpenButton" Content="Ouvrir un document Word (.docx)..." Click="OpenButton_Click" />
             <Button x:Name="ExportButton" Content="Exporter XML..." Click="ExportButton_Click" IsEnabled="False" />
             <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="15,0,0,0" Foreground="#666" />
+            <Button x:Name="CheckUpdateButton" Content="Verifier les mises a jour" Click="CheckUpdateButton_Click"
+                    HorizontalAlignment="Right" Margin="0,0,8,0" />
             <Button x:Name="AboutButton" Content="A propos" Click="AboutButton_Click"
                     HorizontalAlignment="Right" Margin="0" Padding="10,5" />
         </StackPanel>
