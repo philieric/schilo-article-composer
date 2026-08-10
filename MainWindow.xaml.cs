@@ -220,6 +220,12 @@ public partial class MainWindow : FluentWindow
         {
             Filter = "Documents Word (*.docx)|*.docx",
             Title = "Choisir le document Word source",
+            // Sans ca, la boite de dialogue Windows elle-meme refuse de renvoyer le
+            // chemin d'un fichier verrouille (deja ouvert dans Word) avec "Le fichier
+            // est en cours d'utilisation", avant meme que notre code ne s'execute —
+            // empechant WordLockBridge de prendre le relais. On desactive cette
+            // verification native ; c'est ParseWithWordLockFallback qui gere le cas.
+            CheckFileExists = false,
         };
 
         if (dialog.ShowDialog() != true) return;
