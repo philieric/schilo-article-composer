@@ -1,0 +1,60 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <Package Name="Schilo Article Composer"
+           Manufacturer="Schilo.org"
+           Version="$(var.AppVersion)"
+           UpgradeCode="9f86fdba-5109-4ef6-b0e3-cdce9c92de78"
+           InstallerVersion="500"
+           Compressed="yes"
+           Scope="perUser">
+
+    <MajorUpgrade DowngradeErrorMessage="Une version plus recente de Schilo Article Composer est deja installee." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="Schilo Article Composer">
+          <Component Id="MainExecutable" Guid="4b6c7e2a-1a3b-4a8e-9f0a-2e6c8f1d5a11">
+            <File Id="AppExe" Source="$(var.PublishDir)\SchiloArticleComposer.exe" KeyPath="yes" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppProgramMenuFolder" Name="Schilo Article Composer">
+        <Component Id="StartMenuShortcut" Guid="7d2f4c1e-6b8a-4e3d-9c5f-1a2b3c4d5e6f">
+          <Shortcut Id="StartMenuShortcutFile"
+                    Name="Schilo Article Composer"
+                    Description="Convertit un document Word en XML de sections Schilo Builder"
+                    Target="[INSTALLFOLDER]SchiloArticleComposer.exe"
+                    WorkingDirectory="INSTALLFOLDER" />
+          <RemoveFolder Id="RemoveAppProgramMenuFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\Schilo\ArticleComposer" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="2c9e1f3a-5d7b-4f2c-8a1e-6b3c9d0e4f5a">
+        <Shortcut Id="DesktopShortcutFile"
+                  Name="Schilo Article Composer"
+                  Description="Convertit un document Word en XML de sections Schilo Builder"
+                  Target="[INSTALLFOLDER]SchiloArticleComposer.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\Schilo\ArticleComposer" Name="desktop_shortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="Schilo Article Composer" Level="1">
+      <ComponentRef Id="MainExecutable" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+    <ui:WixUI Id="WixUI_Minimal" />
+
+  </Package>
+</Wix>
