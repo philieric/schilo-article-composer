@@ -133,8 +133,16 @@ pour gérer les mises à jour propres).
 
 ## 5. Workflow git
 
-Dépôt mono-branche `main` pour l'instant (pas encore de `develop`/`master`
-séparés comme sur `schilo-theme` — outil solo, workflow plus simple assumé).
-Pour une modification non triviale, une branche `feature/*` dédiée reste une
-bonne pratique, mais ce n'est pas une règle imposée ici comme sur le thème
-(voir `git-workflow` du dépôt `schilo-theme` si Eric veut aligner les deux).
+Aligné sur `schilo-theme` depuis la demande d'Eric du 2026-08-10 : `main`
+(stable/publié) + `develop` (intégration), toutes deux poussées sur origin.
+
+**Règle impérative : à chaque nouvelle demande d'Eric, créer une branche
+`feature/<slug>` dédiée à partir de `develop`** (jamais travailler directement
+sur `develop` ou `main`). Une fois la demande terminée et vérifiée dans la
+session (build + lancement réel de l'UI), fusionner la branche `feature/*`
+dans `develop` en local et pousser — **pas de Pull Request GitHub**, Eric a
+choisi le merge direct pour cet outil solo.
+
+`develop` ne remonte vers `main` qu'au moment d'une release explicite (build
+MSI livré à Eric), pas à chaque fusion de feature — à confirmer/ajuster si
+Eric précise un autre déclencheur.
