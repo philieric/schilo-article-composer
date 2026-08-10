@@ -120,10 +120,12 @@ public partial class MainWindow : FluentWindow
                     break;
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            MessageBox.Show($"Impossible de verifier les mises a jour :\n{ex.Message}", "Erreur",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            // Echec technique (reseau, limite API GitHub, etc.) : sans issue actionnable
+            // pour l'utilisateur, on affiche un message neutre plutot qu'une erreur brute.
+            MessageBox.Show("Pas de mise a jour disponible.", "Mises a jour",
+                MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 
