@@ -6,19 +6,39 @@ namespace SchiloArticleComposer.Services;
 
 public class AutoUpdater
 {
-    public async Task<string> DownloadInstallerAsync(string downloadUrl)
+    public async Task<string> DownloadInstallerAsync(string downloadUrl, IProgress<int>? progress = null)
     {
         using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("SchiloArticleComposer-AutoUpdate");
 
-        var bytes = await client.GetByteArrayAsync(downloadUrl);
-        if (bytes.Length == 0)
+        using var response = await client.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        var totalBytes = response.Content.Headers.ContentLength;
+        var path = Path.Combine(Path.GetTempPath(), $"SchiloArticleComposer-update-{Guid.NewGuid():N}.msi");
+
+        long totalRead = 0;
+        await using (var contentStream = await response.Content.ReadAsStreamAsync())
+        await using (var fileStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None, 81920, useAsync: true))
+        {
+            var buffer = new byte[81920];
+            int bytesRead;
+            while ((bytesRead = await contentStream.ReadAsync(buffer)) > 0)
+            {
+                await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+                totalRead += bytesRead;
+                if (totalBytes.HasValue && totalBytes.Value > 0)
+                {
+                    progress?.Report((int)(totalRead * 100 / totalBytes.Value));
+                }
+            }
+        }
+
+        if (totalRead == 0)
         {
             throw new InvalidOperationException("Le fichier telecharge est vide.");
         }
 
-        var path = Path.Combine(Path.GetTempPath(), $"SchiloArticleComposer-update-{Guid.NewGuid():N}.msi");
-        await File.WriteAllBytesAsync(path, bytes);
         return path;
     }
 
