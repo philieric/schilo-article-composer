@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace SchiloArticleComposer.Services;
 
-public record UpdateInfo(string Version, string Url);
+public record UpdateInfo(string Version, string Url, string? MsiDownloadUrl);
 
 public enum UpdateCheckStatus
 {
@@ -55,8 +55,25 @@ public class UpdateChecker
         }
 
         var normalizedCurrent = new Version(currentVersion.Major, currentVersion.Minor, Math.Max(currentVersion.Build, 0));
-        return latestVersion > normalizedCurrent
-            ? new UpdateCheckResult(UpdateCheckStatus.UpdateAvailable, new UpdateInfo(versionText, htmlUrl))
-            : new UpdateCheckResult(UpdateCheckStatus.UpToDate);
+        if (latestVersion <= normalizedCurrent)
+        {
+            return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
+        }
+
+        string? msiUrl = null;
+        if (root.TryGetProperty("assets", out var assets))
+        {
+            foreach (var asset in assets.EnumerateArray())
+            {
+                var name = asset.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
+                if (name != null && name.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
+                {
+                    msiUrl = asset.TryGetProperty("browser_download_url", out var urlProp2) ? urlProp2.GetString() : null;
+                    break;
+                }
+            }
+        }
+
+        return new UpdateCheckResult(UpdateCheckStatus.UpdateAvailable, new UpdateInfo(versionText, htmlUrl, msiUrl));
     }
 }

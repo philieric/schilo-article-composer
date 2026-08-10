@@ -18,6 +18,7 @@ public partial class MainWindow : FluentWindow
     private readonly DocxParser _parser = new();
     private readonly XmlExporter _exporter = new();
     private readonly UpdateChecker _updateChecker = new();
+    private readonly AutoUpdater _autoUpdater = new();
     private DocSection? _selected;
     private bool _suppressEdits;
 
@@ -51,7 +52,7 @@ public partial class MainWindow : FluentWindow
             UpdateCheckState.SetLastCheckNowUtc();
             if (result.Status == UpdateCheckStatus.UpdateAvailable && result.Update != null)
             {
-                OfferUpdate(result.Update);
+                await OfferUpdateAsync(result.Update);
             }
         }
         catch
@@ -61,15 +62,39 @@ public partial class MainWindow : FluentWindow
         }
     }
 
-    private void OfferUpdate(UpdateInfo update)
+    private async Task OfferUpdateAsync(UpdateInfo update)
     {
-        var result = MessageBox.Show(
-            $"Une nouvelle version ({update.Version}) de Schilo Article Composer est disponible.\n\n" +
-            "Ouvrir la page de telechargement ?",
-            "Mise a jour disponible", MessageBoxButton.YesNo, MessageBoxImage.Information);
+        var canAutoInstall = update.MsiDownloadUrl != null;
+        var question = canAutoInstall
+            ? $"Une nouvelle version ({update.Version}) de Schilo Article Composer est disponible.\n\n" +
+              "La telecharger et l'installer maintenant ? L'application va se fermer puis redemarrer automatiquement."
+            : $"Une nouvelle version ({update.Version}) de Schilo Article Composer est disponible.\n\n" +
+              "Ouvrir la page de telechargement ?";
 
-        if (result == MessageBoxResult.Yes)
+        var result = MessageBox.Show(question, "Mise a jour disponible", MessageBoxButton.YesNo, MessageBoxImage.Information);
+        if (result != MessageBoxResult.Yes)
         {
+            return;
+        }
+
+        if (!canAutoInstall)
+        {
+            Process.Start(new ProcessStartInfo(update.Url) { UseShellExecute = true });
+            return;
+        }
+
+        try
+        {
+            StatusText.Text = $"Telechargement de la mise a jour {update.Version}...";
+            var msiPath = await _autoUpdater.DownloadInstallerAsync(update.MsiDownloadUrl!);
+            _autoUpdater.InstallAndRestart(msiPath);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Echec du telechargement/installation automatique de la mise a jour :\n{ex.Message}\n\n" +
+                "Tu peux telecharger et installer manuellement depuis la page de la release.",
+                "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             Process.Start(new ProcessStartInfo(update.Url) { UseShellExecute = true });
         }
     }
@@ -83,7 +108,7 @@ public partial class MainWindow : FluentWindow
             switch (result.Status)
             {
                 case UpdateCheckStatus.UpdateAvailable when result.Update != null:
-                    OfferUpdate(result.Update);
+                    await OfferUpdateAsync(result.Update);
                     break;
                 case UpdateCheckStatus.UpToDate:
                     MessageBox.Show("Vous utilisez deja la derniere version.", "Mises a jour",
