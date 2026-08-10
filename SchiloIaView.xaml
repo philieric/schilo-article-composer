@@ -1,0 +1,74 @@
+<UserControl x:Class="SchiloArticleComposer.SchiloIaView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Selection du modele d'instructions -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Modele d'instructions :" FontWeight="Bold" VerticalAlignment="Center" />
+                <ComboBox x:Name="PresetCombo" Width="360" Margin="8,0,0,0"
+                          SelectionChanged="PresetCombo_SelectionChanged" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <Button x:Name="NewPresetButton" Content="Nouveau..." Click="NewPresetButton_Click" />
+                <Button x:Name="DeletePresetButton" Content="Supprimer" Click="DeletePresetButton_Click" />
+                <Button x:Name="SetDefaultButton" Content="★ Definir par defaut" Click="SetDefaultButton_Click" />
+            </StackPanel>
+            <TextBlock x:Name="HintText" Foreground="#0067c0" Margin="0,6,0,0" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <!-- Instructions -->
+        <TextBlock Grid.Row="1" Text="Instructions pour l'IA (modifiables) :" FontWeight="Bold" Margin="0,0,0,4" />
+        <TextBox x:Name="InstructionsBox" Grid.Row="2" Height="110" AcceptsReturn="True" TextWrapping="Wrap"
+                 VerticalScrollBarVisibility="Auto" Padding="6" Margin="0,0,0,6" />
+        <Button x:Name="SavePresetButton" Grid.Row="3" Content="Sauvegarder les modifications de ce modele"
+                Click="SavePresetButton_Click" HorizontalAlignment="Left" Margin="0,0,0,14" />
+
+        <!-- Texte a corriger : occupe le reste de l'espace -->
+        <Grid Grid.Row="4" Margin="0,0,0,10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <TextBlock Grid.Row="0" Text="Texte a corriger (collez ici avec Ctrl+V) :" FontWeight="Bold" Margin="0,0,0,4" />
+            <TextBox x:Name="TextToCorrectBox" Grid.Row="1" AcceptsReturn="True" TextWrapping="Wrap"
+                     VerticalScrollBarVisibility="Auto" Padding="6" />
+        </Grid>
+
+        <!-- Actions -->
+        <StackPanel Grid.Row="5" Margin="0,0,0,10">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="CopyButton" Content="Copier le prompt complet" Click="CopyButton_Click" />
+                <Button x:Name="ClearButton" Content="Effacer le texte" Click="ClearButton_Click" />
+                <Button x:Name="PasteButton" Content="Coller" Click="PasteButton_Click" />
+                <Button x:Name="ClearAndPasteButton" Content="Effacer + coller" Click="ClearAndPasteButton_Click" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="Ouvrir l'IA :" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <Button x:Name="ClaudeButton" Content="Claude" Click="ClaudeButton_Click" Padding="8,4" />
+                <Button x:Name="ChatGptButton" Content="ChatGPT" Click="ChatGptButton_Click" Padding="8,4" />
+                <Button x:Name="CopilotButton" Content="Copilot" Click="CopilotButton_Click" Padding="8,4" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Statut, en bas -->
+        <TextBlock x:Name="StatusText" Grid.Row="6" Foreground="#4CAF50" TextWrapping="Wrap" />
+    </Grid>
+</UserControl>
