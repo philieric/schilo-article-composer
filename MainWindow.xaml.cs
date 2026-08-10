@@ -37,20 +37,26 @@ public partial class MainWindow : FluentWindow
         _ = CheckForUpdatesOnStartupAsync();
     }
 
-    // Remplace le rose/magenta assez sourd du theme HTML par defaut d'AvalonEdit par
-    // un mauve vif, plus lisible sur le fond sombre de l'editeur (demande d'Eric).
-    // Passe par HighlightingManager.Instance (la definition partagee/canonique), pas
-    // par ContentBox.SyntaxHighlighting : dans la fenetre reelle (visuel plus complexe
-    // que dans un harnais de test isole), cette derniere propriete pouvait ne pas
-    // encore etre resolue au moment de l'appel depuis le constructeur, ce qui faisait
-    // silencieusement echouer la personnalisation (couleur par defaut inchangee).
+    // Remplace le magenta sombre (#8B008B) par defaut d'AvalonEdit par un mauve vif,
+    // plus lisible sur le fond sombre de l'editeur (demande d'Eric). Le theme HTML
+    // integre d'AvalonEdit n'a PAS de couleur nommee "Tag" (verifie en inspectant
+    // HTML-Mode.xshd, embarque dans ICSharpCode.AvalonEdit.dll) : les chevrons/nom de
+    // balise utilisent "HtmlTag"/"Tags", et le "/" de fermeture utilise "Slash" —
+    // GetNamedColor("Tag") renvoyait toujours null et ne changeait donc rien du tout,
+    // silencieusement (d'ou l'absence totale de changement malgre les tentatives
+    // precedentes). Passe par HighlightingManager.Instance (definition partagee),
+    // toujours disponible immediatement contrairement a ContentBox.SyntaxHighlighting.
     private static void CustomizeHtmlTagColor()
     {
+        var brush = new SimpleHighlightingBrush(Color.FromRgb(0xCA, 0x14, 0xFC));
         var definition = HighlightingManager.Instance.GetDefinition("HTML");
-        var tagColor = definition?.GetNamedColor("Tag");
-        if (tagColor != null)
+        foreach (var name in new[] { "HtmlTag", "Tags", "Slash" })
         {
-            tagColor.Foreground = new SimpleHighlightingBrush(Color.FromRgb(0xCA, 0x14, 0xFC));
+            var color = definition?.GetNamedColor(name);
+            if (color != null)
+            {
+                color.Foreground = brush;
+            }
         }
     }
 
