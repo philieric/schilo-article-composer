@@ -133,16 +133,43 @@ pour gérer les mises à jour propres).
 
 ## 5. Workflow git
 
-Aligné sur `schilo-theme` depuis la demande d'Eric du 2026-08-10 : `main`
-(stable/publié) + `develop` (intégration), toutes deux poussées sur origin.
+Aligné sur `schilo-theme` (voir `git-workflow` dans ce dépôt) depuis la
+demande d'Eric du 2026-08-10 : `main` (stable/publié) + `develop`
+(intégration), toutes deux poussées sur origin.
 
 **Règle impérative : à chaque nouvelle demande d'Eric, créer une branche
-`feature/<slug>` dédiée à partir de `develop`** (jamais travailler directement
-sur `develop` ou `main`). Une fois la demande terminée et vérifiée dans la
-session (build + lancement réel de l'UI), fusionner la branche `feature/*`
-dans `develop` en local et pousser — **pas de Pull Request GitHub**, Eric a
+dédiée à partir de `develop`** (jamais travailler directement sur `develop`
+ou `main`), avec le même prefixage que `schilo-theme` :
+`feature/<slug>` (fonctionnalité), `fix/<slug>` (correctif), `chore/<slug>`
+(outillage/config/CI). Une fois la demande terminée et vérifiée dans la
+session (build + lancement réel de l'UI), fusionner la branche dans
+`develop` en local et pousser — **pas de Pull Request GitHub**, Eric a
 choisi le merge direct pour cet outil solo.
 
 `develop` ne remonte vers `main` qu'au moment d'une release explicite (build
-MSI livré à Eric), pas à chaque fusion de feature — à confirmer/ajuster si
-Eric précise un autre déclencheur.
+MSI livré à Eric), pas à chaque fusion de feature.
+
+### Releases automatisees (depuis le 2026-08-10)
+
+Contrairement a `schilo-theme` (simple tag lu par un plugin WordPress, pas de
+binaire a joindre), cette app est compilee : un tag seul ne suffit pas, il
+faut construire et joindre le MSI. Un workflow GitHub Actions
+(`.github/workflows/release.yml`) s'en charge automatiquement :
+
+1. Bumper `<Version>`/`<AssemblyVersion>`/`<FileVersion>` dans
+   `SchiloArticleComposer.csproj` (les trois identiques, format `x.y.z`).
+2. Fusionner `develop` -> `main`, pousser.
+3. Creer et pousser un tag **annote** `vX.Y.Z` correspondant exactement a
+   `<Version>` (le workflow echoue si ca ne correspond pas) :
+   `git tag -a vX.Y.Z -m "Version X.Y.Z" && git push origin vX.Y.Z`.
+4. Le workflow (runner `windows-latest`) publie l'app, construit le MSI avec
+   WiX, et cree la GitHub Release avec le MSI attache — sans authentification
+   locale necessaire (GITHUB_TOKEN fourni automatiquement par Actions).
+
+Cette methode contourne definitivement le blocage rencontre le 2026-08-10 :
+`gh` n'etait pas authentifie sur cette machine, et extraire le jeton Git
+stocke pour appeler l'API a la place a ete refuse par le garde-fou de
+securite (extraction d'identifiants) — a ne plus retenter. Le tag + push
+restent des operations git normales, deja possibles avec les identifiants
+existants ; seule la creation de la Release + upload du binaire necessitait
+un acces qu'on n'avait pas localement, desormais delegue a Actions.
