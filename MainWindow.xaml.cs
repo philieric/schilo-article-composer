@@ -87,7 +87,7 @@ public partial class MainWindow : FluentWindow
         }
     }
 
-    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    private void HtmlTagColorButton_Click(object sender, RoutedEventArgs e)
     {
         var settings = AppSettings.Load();
         var currentColor = ParseColor(settings.HtmlTagColor);
