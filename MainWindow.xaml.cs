@@ -39,9 +39,15 @@ public partial class MainWindow : FluentWindow
 
     // Remplace le rose/magenta assez sourd du theme HTML par defaut d'AvalonEdit par
     // un mauve vif, plus lisible sur le fond sombre de l'editeur (demande d'Eric).
-    private void CustomizeHtmlTagColor()
+    // Passe par HighlightingManager.Instance (la definition partagee/canonique), pas
+    // par ContentBox.SyntaxHighlighting : dans la fenetre reelle (visuel plus complexe
+    // que dans un harnais de test isole), cette derniere propriete pouvait ne pas
+    // encore etre resolue au moment de l'appel depuis le constructeur, ce qui faisait
+    // silencieusement echouer la personnalisation (couleur par defaut inchangee).
+    private static void CustomizeHtmlTagColor()
     {
-        var tagColor = ContentBox.SyntaxHighlighting?.GetNamedColor("Tag");
+        var definition = HighlightingManager.Instance.GetDefinition("HTML");
+        var tagColor = definition?.GetNamedColor("Tag");
         if (tagColor != null)
         {
             tagColor.Foreground = new SimpleHighlightingBrush(Color.FromRgb(0xCA, 0x14, 0xFC));
