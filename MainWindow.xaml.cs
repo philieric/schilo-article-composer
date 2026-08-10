@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Media;
+using ICSharpCode.AvalonEdit.Highlighting;
 using Microsoft.Win32;
 using SchiloArticleComposer.Models;
 using SchiloArticleComposer.Services;
@@ -30,7 +32,20 @@ public partial class MainWindow : FluentWindow
         ApplicationThemeManager.ApplySystemTheme();
         SystemThemeWatcher.Watch(this);
 
+        CustomizeHtmlTagColor();
+
         _ = CheckForUpdatesOnStartupAsync();
+    }
+
+    // Remplace le rose/magenta assez sourd du theme HTML par defaut d'AvalonEdit par
+    // un mauve vif, plus lisible sur le fond sombre de l'editeur (demande d'Eric).
+    private void CustomizeHtmlTagColor()
+    {
+        var tagColor = ContentBox.SyntaxHighlighting?.GetNamedColor("Tag");
+        if (tagColor != null)
+        {
+            tagColor.Foreground = new SimpleHighlightingBrush(Color.FromRgb(0xDA, 0x70, 0xD6));
+        }
     }
 
     private static Version GetCurrentVersion()
