@@ -38,6 +38,22 @@ public partial class MainWindow : FluentWindow
         _ = CheckForUpdatesOnStartupAsync();
     }
 
+    private void NavSchiloIaButton_Click(object sender, RoutedEventArgs e)
+    {
+        ArticleComposerPanel.Visibility = Visibility.Collapsed;
+        SchiloIaPanel.Visibility = Visibility.Visible;
+        NavSchiloIaButton.IsEnabled = false;
+        NavArticleComposerButton.IsEnabled = true;
+    }
+
+    private void NavArticleComposerButton_Click(object sender, RoutedEventArgs e)
+    {
+        SchiloIaPanel.Visibility = Visibility.Collapsed;
+        ArticleComposerPanel.Visibility = Visibility.Visible;
+        NavArticleComposerButton.IsEnabled = false;
+        NavSchiloIaButton.IsEnabled = true;
+    }
+
     // Remplace la couleur par defaut des balises HTML d'AvalonEdit (theme HTML integre)
     // par la couleur choisie par Eric (parametrable via le bouton "Parametrage"). Le
     // theme integre n'a PAS de couleur nommee "Tag" (verifie en inspectant
