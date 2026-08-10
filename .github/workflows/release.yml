@@ -39,16 +39,24 @@ jobs:
         run: dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 
       - name: Installer WiX v5
+        id: wix
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 5.0.2
-          & "$env:USERPROFILE\.dotnet\tools\wix.exe" extension add WixToolset.UI.wixext/5.0.2
-          "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
+          $wixExe = Join-Path $env:USERPROFILE ".dotnet\tools\wix.exe"
+          if (-not (Test-Path $wixExe)) {
+            Write-Error "wix.exe introuvable a l'emplacement attendu : $wixExe"
+            exit 1
+          }
+          & $wixExe --version
+          & $wixExe extension add WixToolset.UI.wixext/5.0.2
+          "wixExe=$wixExe" >> $env:GITHUB_OUTPUT
 
       - name: Construire le MSI
         working-directory: installer
         shell: pwsh
-        run: wix build Product.wxs -ext WixToolset.UI.wixext -arch x64 -d "AppVersion=${{ steps.version.outputs.version }}" -d "PublishDir=../publish" -o SchiloArticleComposer.msi
+        run: |
+          & "${{ steps.wix.outputs.wixExe }}" build Product.wxs -ext WixToolset.UI.wixext -arch x64 -d "AppVersion=${{ steps.version.outputs.version }}" -d "PublishDir=../publish" -o SchiloArticleComposer.msi
 
       - name: Publier la GitHub Release
         uses: softprops/action-gh-release@v2
