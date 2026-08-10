@@ -89,7 +89,7 @@
                 <TextBlock DockPanel.Dock="Top" Text="Contenu (HTML) — editable" FontWeight="Bold" Margin="0,0,0,4" />
                 <avalonEdit:TextEditor x:Name="ContentBox" SyntaxHighlighting="HTML"
                          FontFamily="Consolas" FontSize="13" WordWrap="True" ShowLineNumbers="True"
-                         Background="White" Foreground="Black" Padding="6"
+                         Background="#1E1E1E" Foreground="#D4D4D4" LineNumbersForeground="#6E7681" Padding="6"
                          TextChanged="ContentBox_TextChanged" IsEnabled="False" />
             </DockPanel>
         </Grid>
