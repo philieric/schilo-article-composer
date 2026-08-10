@@ -36,6 +36,7 @@ public partial class MainWindow : FluentWindow
 
         CustomizeHtmlTagColor(ParseColor(AppSettings.Load().HtmlTagColor));
 
+
         _ = CheckForUpdatesOnStartupAsync();
     }
 
@@ -162,14 +163,19 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
+        var progressWindow = new UpdateProgressWindow { Owner = this };
+        progressWindow.Show();
+
         try
         {
-            StatusText.Text = $"Telechargement de la mise a jour {update.Version}...";
-            var msiPath = await _autoUpdater.DownloadInstallerAsync(update.MsiDownloadUrl!);
+            var progress = new Progress<int>(progressWindow.ReportDownloadProgress);
+            var msiPath = await _autoUpdater.DownloadInstallerAsync(update.MsiDownloadUrl!, progress);
+            progressWindow.ShowInstalling();
             _autoUpdater.InstallAndRestart(msiPath);
         }
         catch (Exception ex)
         {
+            progressWindow.Close();
             MessageBox.Show(
                 $"Echec du telechargement/installation automatique de la mise a jour :\n{ex.Message}\n\n" +
                 "Tu peux telecharger et installer manuellement depuis la page de la release.",
