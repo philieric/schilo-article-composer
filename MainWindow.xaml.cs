@@ -44,7 +44,7 @@ public partial class MainWindow : FluentWindow
         var tagColor = ContentBox.SyntaxHighlighting?.GetNamedColor("Tag");
         if (tagColor != null)
         {
-            tagColor.Foreground = new SimpleHighlightingBrush(Color.FromRgb(0xDA, 0x70, 0xD6));
+            tagColor.Foreground = new SimpleHighlightingBrush(Color.FromRgb(0xCA, 0x14, 0xFC));
         }
     }
 
