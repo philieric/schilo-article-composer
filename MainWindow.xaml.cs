@@ -11,6 +11,7 @@ using Wpf.Ui.Controls;
 using MessageBox = System.Windows.MessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
 using MessageBoxResult = System.Windows.MessageBoxResult;
+using Color = System.Windows.Media.Color;
 
 namespace SchiloArticleComposer;
 
@@ -32,32 +33,66 @@ public partial class MainWindow : FluentWindow
         ApplicationThemeManager.ApplySystemTheme();
         SystemThemeWatcher.Watch(this);
 
-        CustomizeHtmlTagColor();
+        CustomizeHtmlTagColor(ParseColor(AppSettings.Load().HtmlTagColor));
 
         _ = CheckForUpdatesOnStartupAsync();
     }
 
-    // Remplace le magenta sombre (#8B008B) par defaut d'AvalonEdit par un mauve vif,
-    // plus lisible sur le fond sombre de l'editeur (demande d'Eric). Le theme HTML
-    // integre d'AvalonEdit n'a PAS de couleur nommee "Tag" (verifie en inspectant
+    // Remplace la couleur par defaut des balises HTML d'AvalonEdit (theme HTML integre)
+    // par la couleur choisie par Eric (parametrable via le bouton "Parametrage"). Le
+    // theme integre n'a PAS de couleur nommee "Tag" (verifie en inspectant
     // HTML-Mode.xshd, embarque dans ICSharpCode.AvalonEdit.dll) : les chevrons/nom de
-    // balise utilisent "HtmlTag"/"Tags", et le "/" de fermeture utilise "Slash" —
-    // GetNamedColor("Tag") renvoyait toujours null et ne changeait donc rien du tout,
-    // silencieusement (d'ou l'absence totale de changement malgre les tentatives
-    // precedentes). Passe par HighlightingManager.Instance (definition partagee),
-    // toujours disponible immediatement contrairement a ContentBox.SyntaxHighlighting.
-    private static void CustomizeHtmlTagColor()
+    // balise utilisent "HtmlTag"/"Tags", et le "/" de fermeture utilise "Slash".
+    // Passe par HighlightingManager.Instance (definition partagee), toujours
+    // disponible immediatement contrairement a ContentBox.SyntaxHighlighting.
+    private static void CustomizeHtmlTagColor(Color color)
     {
-        var brush = new SimpleHighlightingBrush(Color.FromRgb(0xCA, 0x14, 0xFC));
+        var brush = new SimpleHighlightingBrush(color);
         var definition = HighlightingManager.Instance.GetDefinition("HTML");
         foreach (var name in new[] { "HtmlTag", "Tags", "Slash" })
         {
-            var color = definition?.GetNamedColor(name);
-            if (color != null)
+            var namedColor = definition?.GetNamedColor(name);
+            if (namedColor != null)
             {
-                color.Foreground = brush;
+                namedColor.Foreground = brush;
             }
         }
+    }
+
+    private static Color ParseColor(string hex)
+    {
+        try
+        {
+            return (Color)ColorConverter.ConvertFromString(hex)!;
+        }
+        catch
+        {
+            return Color.FromRgb(0xCA, 0x14, 0xFC);
+        }
+    }
+
+    private void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        var settings = AppSettings.Load();
+        var currentColor = ParseColor(settings.HtmlTagColor);
+
+        using var dialog = new System.Windows.Forms.ColorDialog
+        {
+            Color = System.Drawing.Color.FromArgb(currentColor.R, currentColor.G, currentColor.B),
+            FullOpen = true,
+        };
+
+        if (dialog.ShowDialog() != System.Windows.Forms.DialogResult.OK)
+        {
+            return;
+        }
+
+        var newColor = Color.FromRgb(dialog.Color.R, dialog.Color.G, dialog.Color.B);
+        settings.HtmlTagColor = $"#{newColor.R:X2}{newColor.G:X2}{newColor.B:X2}";
+        AppSettings.Save(settings);
+
+        CustomizeHtmlTagColor(newColor);
+        ContentBox.TextArea.TextView.Redraw();
     }
 
     private static Version GetCurrentVersion()
