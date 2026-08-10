@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows;
 using Microsoft.Win32;
 using SchiloArticleComposer.Models;
@@ -7,6 +8,7 @@ using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using MessageBox = System.Windows.MessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
+using MessageBoxResult = System.Windows.MessageBoxResult;
 
 namespace SchiloArticleComposer;
 
@@ -15,6 +17,7 @@ public partial class MainWindow : FluentWindow
     private readonly ObservableCollection<DocSection> _sections = new();
     private readonly DocxParser _parser = new();
     private readonly XmlExporter _exporter = new();
+    private readonly UpdateChecker _updateChecker = new();
     private DocSection? _selected;
     private bool _suppressEdits;
 
@@ -25,6 +28,62 @@ public partial class MainWindow : FluentWindow
 
         ApplicationThemeManager.ApplySystemTheme();
         SystemThemeWatcher.Watch(this);
+
+        _ = CheckForUpdatesOnStartupAsync();
+    }
+
+    private static Version GetCurrentVersion()
+        => System.Reflection.Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
+
+    private async Task CheckForUpdatesOnStartupAsync()
+    {
+        try
+        {
+            var update = await _updateChecker.CheckForUpdateAsync(GetCurrentVersion());
+            if (update != null)
+            {
+                OfferUpdate(update);
+            }
+        }
+        catch
+        {
+            // Verification silencieuse au demarrage : pas de connexion, API indisponible, etc. -> on ignore.
+        }
+    }
+
+    private void OfferUpdate(UpdateInfo update)
+    {
+        var result = MessageBox.Show(
+            $"Une nouvelle version ({update.Version}) de Schilo Article Composer est disponible.\n\n" +
+            "Ouvrir la page de telechargement ?",
+            "Mise a jour disponible", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+        if (result == MessageBoxResult.Yes)
+        {
+            Process.Start(new ProcessStartInfo(update.Url) { UseShellExecute = true });
+        }
+    }
+
+    private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var update = await _updateChecker.CheckForUpdateAsync(GetCurrentVersion());
+            if (update != null)
+            {
+                OfferUpdate(update);
+            }
+            else
+            {
+                MessageBox.Show("Vous utilisez deja la derniere version.", "Mises a jour",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Impossible de verifier les mises a jour :\n{ex.Message}", "Erreur",
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void OpenButton_Click(object sender, RoutedEventArgs e)
