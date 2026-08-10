@@ -1,5 +1,5 @@
+using System.Net;
 using System.Net.Http;
-using System.Text.Json;
 
 namespace SchiloArticleComposer.Services;
 
@@ -14,41 +14,35 @@ public enum UpdateCheckStatus
 
 public record UpdateCheckResult(UpdateCheckStatus Status, UpdateInfo? Update = null);
 
+// Verifie la version via raw.githubusercontent.com (CDN, pas via api.github.com) : la
+// limite anonyme de l'API (60 requetes/heure par IP) s'est epuisee a plusieurs reprises
+// en usage reel ce jour-la, avec un effet pervers observe empiriquement — chaque
+// nouvelle requete pendant l'epuisement repousse le "reset" d'une heure de plus, donc
+// ca ne se retablit jamais tant que quelqu'un continue a verifier. raw.githubusercontent
+// (CDN Fastly) n'a pas cette contrainte pratique. Le lien de telechargement du MSI est
+// reconstruit de maniere previsible (releases/download/vX.Y.Z/...), egalement hors API.
 public class UpdateChecker
 {
-    private const string LatestReleaseApiUrl =
-        "https://api.github.com/repos/philieric/schilo-article-composer/releases/latest";
+    private const string Owner = "philieric";
+    private const string Repo = "schilo-article-composer";
 
-    // Compare uniquement Major.Minor.Build : les tags GitHub ("v1.2.0") n'ont pas de
-    // 4e composant Revision, contrairement a AssemblyVersion (toujours "x.y.z.0").
-    // Leve une exception (reseau, JSON invalide...) plutot que de l'avaler : seul
-    // l'appelant sait s'il doit ignorer l'echec silencieusement (verification au
-    // demarrage) ou l'afficher (verification manuelle).
     public async Task<UpdateCheckResult> CheckForUpdateAsync(Version currentVersion)
     {
+        var latestVersionUrl = $"https://raw.githubusercontent.com/{Owner}/{Repo}/main/latest-version.txt";
+
         using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         client.DefaultRequestHeaders.UserAgent.ParseAdd("SchiloArticleComposer-UpdateCheck");
 
-        using var response = await client.GetAsync(LatestReleaseApiUrl);
-        if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+        using var response = await client.GetAsync(latestVersionUrl);
+        if (response.StatusCode == HttpStatusCode.NotFound)
         {
-            // Pas encore de release publiee sur GitHub.
+            // Pas encore de latest-version.txt publie (avant la toute premiere release
+            // qui l'aura cree).
             return new UpdateCheckResult(UpdateCheckStatus.NoReleasePublished);
         }
         response.EnsureSuccessStatusCode();
 
-        using var stream = await response.Content.ReadAsStreamAsync();
-        using var doc = await JsonDocument.ParseAsync(stream);
-        var root = doc.RootElement;
-
-        var tagName = root.TryGetProperty("tag_name", out var tagProp) ? tagProp.GetString() : null;
-        var htmlUrl = root.TryGetProperty("html_url", out var urlProp) ? urlProp.GetString() : null;
-        if (string.IsNullOrWhiteSpace(tagName) || string.IsNullOrWhiteSpace(htmlUrl))
-        {
-            return new UpdateCheckResult(UpdateCheckStatus.NoReleasePublished);
-        }
-
-        var versionText = tagName.TrimStart('v', 'V');
+        var versionText = (await response.Content.ReadAsStringAsync()).Trim();
         if (!Version.TryParse(versionText, out var latestVersion))
         {
             return new UpdateCheckResult(UpdateCheckStatus.NoReleasePublished);
@@ -60,20 +54,10 @@ public class UpdateChecker
             return new UpdateCheckResult(UpdateCheckStatus.UpToDate);
         }
 
-        string? msiUrl = null;
-        if (root.TryGetProperty("assets", out var assets))
-        {
-            foreach (var asset in assets.EnumerateArray())
-            {
-                var name = asset.TryGetProperty("name", out var nameProp) ? nameProp.GetString() : null;
-                if (name != null && name.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
-                {
-                    msiUrl = asset.TryGetProperty("browser_download_url", out var urlProp2) ? urlProp2.GetString() : null;
-                    break;
-                }
-            }
-        }
+        var tag = $"v{versionText}";
+        var releaseUrl = $"https://github.com/{Owner}/{Repo}/releases/tag/{tag}";
+        var msiDownloadUrl = $"https://github.com/{Owner}/{Repo}/releases/download/{tag}/SchiloArticleComposer.msi";
 
-        return new UpdateCheckResult(UpdateCheckStatus.UpdateAvailable, new UpdateInfo(versionText, htmlUrl, msiUrl));
+        return new UpdateCheckResult(UpdateCheckStatus.UpdateAvailable, new UpdateInfo(versionText, releaseUrl, msiDownloadUrl));
     }
 }
