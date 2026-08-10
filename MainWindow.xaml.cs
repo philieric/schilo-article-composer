@@ -39,10 +39,10 @@ public partial class MainWindow : FluentWindow
     {
         try
         {
-            var update = await _updateChecker.CheckForUpdateAsync(GetCurrentVersion());
-            if (update != null)
+            var result = await _updateChecker.CheckForUpdateAsync(GetCurrentVersion());
+            if (result.Status == UpdateCheckStatus.UpdateAvailable && result.Update != null)
             {
-                OfferUpdate(update);
+                OfferUpdate(result.Update);
             }
         }
         catch
@@ -68,15 +68,20 @@ public partial class MainWindow : FluentWindow
     {
         try
         {
-            var update = await _updateChecker.CheckForUpdateAsync(GetCurrentVersion());
-            if (update != null)
+            var result = await _updateChecker.CheckForUpdateAsync(GetCurrentVersion());
+            switch (result.Status)
             {
-                OfferUpdate(update);
-            }
-            else
-            {
-                MessageBox.Show("Vous utilisez deja la derniere version.", "Mises a jour",
-                    MessageBoxButton.OK, MessageBoxImage.Information);
+                case UpdateCheckStatus.UpdateAvailable when result.Update != null:
+                    OfferUpdate(result.Update);
+                    break;
+                case UpdateCheckStatus.UpToDate:
+                    MessageBox.Show("Vous utilisez deja la derniere version.", "Mises a jour",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    break;
+                case UpdateCheckStatus.NoReleasePublished:
+                    MessageBox.Show("Aucune release n'a encore ete publiee sur GitHub.", "Mises a jour",
+                        MessageBoxButton.OK, MessageBoxImage.Information);
+                    break;
             }
         }
         catch (Exception ex)
