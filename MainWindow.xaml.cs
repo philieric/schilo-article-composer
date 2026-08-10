@@ -227,7 +227,7 @@ public partial class MainWindow : FluentWindow
         _selected.Title = TitleBox.Text;
     }
 
-    private void ContentBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+    private void ContentBox_TextChanged(object? sender, EventArgs e)
     {
         if (_suppressEdits || _selected == null) return;
         _selected.ContentHtml = ContentBox.Text;
