@@ -9,6 +9,8 @@ public class DocSection : INotifyPropertyChanged
     private string _contentHtml = string.Empty;
     private bool _include = true;
 
+    public string Type { get; set; } = "paragraphe";
+
     public string Title
     {
         get => _title;

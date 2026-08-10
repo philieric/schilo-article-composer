@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using SchiloArticleComposer.Models;
@@ -37,6 +38,7 @@ public class DocxParser
         DocSection? current = null;
         var contentBuilder = new StringBuilder();
         ListRun? openList = null;
+        var bibleReferences = new List<string>();
 
         void FlushList()
         {
@@ -71,10 +73,18 @@ public class DocxParser
 
             if (current == null)
             {
-                // Contenu avant le premier titre H2 : hors perimetre (page de garde, image, refs...)
+                // Contenu avant le premier titre H2 : hors perimetre (page de garde, image...),
+                // sauf les lignes de reference biblique du bloc "Textes bibliques" (ex: "Matthieu
+                // 13.1-23 (S21)"), qui alimentent une section dediee "textes-bibliques".
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     result.ParagraphsBeforeFirstHeading++;
+
+                    var reference = ExtractBibleReference(text);
+                    if (reference != null)
+                    {
+                        bibleReferences.Add(reference);
+                    }
                 }
                 continue;
             }
@@ -109,7 +119,57 @@ public class DocxParser
         }
 
         FlushSection();
+
+        if (bibleReferences.Count > 0)
+        {
+            var refsHtml = new StringBuilder();
+            foreach (var reference in bibleReferences)
+            {
+                var tag = GetBookTag(reference);
+                refsHtml.Append('<').Append(tag).Append('>')
+                    .Append(EscapeHtml(reference))
+                    .Append("</").Append(tag).Append(">\n");
+            }
+
+            result.Sections.Insert(0, new DocSection
+            {
+                Title = "Textes bibliques",
+                ContentHtml = refsHtml.ToString().TrimEnd(),
+                Type = "textes-bibliques",
+            });
+        }
+
         return result;
+    }
+
+    // Detecte une ligne "Livre chapitre.versets" isolee (ex: "Matthieu 13.1-23 (S21)",
+    // "1 Corinthiens 13.1-3"), telle qu'elle introduit chaque passage dans le bloc "Textes
+    // bibliques". Renvoie la reference nettoyee (sans l'annotation de traduction entre
+    // parentheses), ou null si le texte ne correspond pas a ce format.
+    private static readonly Regex BibleReferencePattern = new(
+        @"^(?:\d\s)?\p{L}[\p{L}\s]*\d+[.,:]\d+(?:\s*[-–—]\s*\d+)?(?:\s*\([^)]*\))?$",
+        RegexOptions.Compiled);
+
+    private static string? ExtractBibleReference(string text)
+    {
+        var trimmed = text.Trim();
+        if (trimmed.Length == 0 || !BibleReferencePattern.IsMatch(trimmed))
+        {
+            return null;
+        }
+
+        return Regex.Replace(trimmed, @"\s*\([^)]*\)\s*$", string.Empty).Trim();
+    }
+
+    // Balise XML par livre pour le bloc "Textes bibliques" (convention Schilo) : Matthieu,
+    // Marc, Luc et Jean ont leur propre balise, tous les autres livres utilisent <BI>.
+    private static string GetBookTag(string reference)
+    {
+        if (reference.StartsWith("Matthieu ", StringComparison.OrdinalIgnoreCase)) return "MT";
+        if (reference.StartsWith("Marc ", StringComparison.OrdinalIgnoreCase)) return "MC";
+        if (reference.StartsWith("Luc ", StringComparison.OrdinalIgnoreCase)) return "LU";
+        if (reference.StartsWith("Jean ", StringComparison.OrdinalIgnoreCase)) return "JE";
+        return "BI";
     }
 
     private void LoadStyles(StyleDefinitionsPart? part)

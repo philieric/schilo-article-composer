@@ -3,10 +3,14 @@ using System.Windows;
 using Microsoft.Win32;
 using SchiloArticleComposer.Models;
 using SchiloArticleComposer.Services;
+using Wpf.Ui.Appearance;
+using Wpf.Ui.Controls;
+using MessageBox = System.Windows.MessageBox;
+using MessageBoxButton = System.Windows.MessageBoxButton;
 
 namespace SchiloArticleComposer;
 
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
     private readonly ObservableCollection<DocSection> _sections = new();
     private readonly DocxParser _parser = new();
@@ -18,6 +22,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         SectionsList.ItemsSource = _sections;
+
+        ApplicationThemeManager.ApplySystemTheme();
+        SystemThemeWatcher.Watch(this);
     }
 
     private void OpenButton_Click(object sender, RoutedEventArgs e)
@@ -44,7 +51,7 @@ public partial class MainWindow : Window
             ExportButton.IsEnabled = _sections.Count > 0;
 
             var ignored = result.ParagraphsBeforeFirstHeading > 0
-                ? $" ({result.ParagraphsBeforeFirstHeading} paragraphe(s) avant le premier titre H2 ignore(s) — page de garde, references, etc.)"
+                ? $" ({result.ParagraphsBeforeFirstHeading} paragraphe(s) avant le premier titre H2 ignore(s) — page de garde, texte des versets, etc.)"
                 : string.Empty;
             StatusText.Text = $"{_sections.Count} section(s) detectee(s).{ignored}";
 
@@ -149,7 +156,8 @@ public partial class MainWindow : Window
             $"Schilo Article Composer\nVersion {versionText}\n\n" +
             "Convertit un document Word (titres « Titre 1 » = sections) en XML de sections\n" +
             "« paragraphe » pour Schilo Builder (schilo.org).\n\n" +
-            "© Schilo.org",
+            "Auteur : Eric Philippot\n" +
+            "© 2026 Eric Philippot",
             "A propos", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 }

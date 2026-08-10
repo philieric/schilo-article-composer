@@ -21,7 +21,7 @@ public class XmlExporter
         foreach (var section in sections.Where(s => s.Include))
         {
             writer.WriteStartElement("section");
-            writer.WriteAttributeString("type", "paragraphe");
+            writer.WriteAttributeString("type", section.Type);
 
             writer.WriteStartElement("title");
             writer.WriteCData(section.Title);

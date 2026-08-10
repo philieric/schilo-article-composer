@@ -12,6 +12,9 @@
     <MajorUpgrade DowngradeErrorMessage="Une version plus recente de Schilo Article Composer est deja installee." />
     <MediaTemplate EmbedCab="yes" />
 
+    <Icon Id="AppIcon.ico" SourceFile="$(var.PublishDir)\..\Assets\logo.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
         <Directory Id="INSTALLFOLDER" Name="Schilo Article Composer">
