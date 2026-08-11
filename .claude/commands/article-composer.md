@@ -69,11 +69,13 @@ cd C:\Users\Eric\source\repos\SchiloArticleComposer
 dotnet build -c Release
 ```
 
-Publier un exécutable autonome (léger, ~9 Mo, nécessite le runtime .NET 8
-Desktop déjà présent sur la machine d'Eric) :
+Publier un exécutable autonome (self-contained depuis le 2026-08-11 — runtime
+.NET 8 embarqué, ~150 Mo au lieu de ~9 Mo, mais zéro prérequis sur la machine
+cible ; nécessaire car l'app est destinée à être installée sur des postes
+non-développeurs qui n'ont pas forcément le runtime .NET 8 Desktop) :
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
 ```
 
 **Toujours lancer l'UI réellement (pas juste `dotnet build`) avant de livrer**
