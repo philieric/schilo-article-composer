@@ -17,13 +17,16 @@
 
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="ProgramsFolder" Name="Programs">
-        <Directory Id="INSTALLFOLDER" Name="Schilo Article Composer">
-          <Component Id="MainExecutable" Guid="4b6c7e2a-1a3b-4a8e-9f0a-2e6c8f1d5a11">
-            <File Id="AppExe" Source="$(var.PublishDir)\SchiloArticleComposer.exe" KeyPath="yes" />
-          </Component>
-        </Directory>
+        <Directory Id="INSTALLFOLDER" Name="Schilo Article Composer" />
       </Directory>
     </StandardDirectory>
+
+    <!-- Publish self-contained multi-fichiers (pas de PublishSingleFile, incompatible
+         WPF) : l'exe seul ne suffit plus, il faut embarquer tout PublishDir
+         (DLL managees + natives WPF, runtime .NET, fichiers de config). -->
+    <ComponentGroup Id="PublishFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**" />
+    </ComponentGroup>
 
     <StandardDirectory Id="ProgramMenuFolder">
       <Directory Id="AppProgramMenuFolder" Name="Schilo Article Composer">
@@ -51,7 +54,7 @@
     </StandardDirectory>
 
     <Feature Id="MainFeature" Title="Schilo Article Composer" Level="1">
-      <ComponentRef Id="MainExecutable" />
+      <ComponentGroupRef Id="PublishFiles" />
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="DesktopShortcut" />
     </Feature>

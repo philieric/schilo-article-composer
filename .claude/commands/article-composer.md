@@ -70,13 +70,22 @@ dotnet build -c Release
 ```
 
 Publier un exécutable autonome (self-contained depuis le 2026-08-11 — runtime
-.NET 8 embarqué, ~150 Mo au lieu de ~9 Mo, mais zéro prérequis sur la machine
-cible ; nécessaire car l'app est destinée à être installée sur des postes
-non-développeurs qui n'ont pas forcément le runtime .NET 8 Desktop) :
+.NET 8 embarqué, mais zéro prérequis sur la machine cible ; nécessaire car
+l'app est destinée à être installée sur des postes non-développeurs qui n'ont
+pas forcément le runtime .NET 8 Desktop) :
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish
+dotnet publish -c Release -r win-x64 --self-contained true -o publish
 ```
+
+**Ne jamais ajouter `-p:PublishSingleFile=true` ici** : testé le 2026-08-11,
+provoque un crash immediat au demarrage (`DllNotFoundException` dans
+`MS.Win32.UnsafeNativeMethods` / `SetWindowLongPtrWndProc`, WPF ne charge pas
+ses DLL natives de fenetrage depuis un bundle single-file). Le self-contained
+multi-fichiers (dossier `publish/` avec plusieurs dizaines de fichiers) suffit
+pour l'objectif "zero prerequis" ; `installer/Product.wxs` harvest tout ce
+dossier via `<Files Include="$(var.PublishDir)\**" />` (WiX v5), plus besoin
+de lister l'exe seul.
 
 **Toujours lancer l'UI réellement (pas juste `dotnet build`) avant de livrer**
 un exécutable à Eric — un bug XAML (ex: `DisplayMemberPath` + `ItemTemplate`
