@@ -12,9 +12,9 @@
     <Authors>Eric Philippot</Authors>
     <Copyright>© 2026 Eric Philippot</Copyright>
     <Description>Convertit un document Word en XML de sections pour Schilo Builder (schilo.org).</Description>
-    <Version>1.5.4</Version>
-    <AssemblyVersion>1.5.4.0</AssemblyVersion>
-    <FileVersion>1.5.4.0</FileVersion>
+    <Version>1.6.0</Version>
+    <AssemblyVersion>1.6.0.0</AssemblyVersion>
+    <FileVersion>1.6.0.0</FileVersion>
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
   </PropertyGroup>
 
