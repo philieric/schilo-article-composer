@@ -38,6 +38,8 @@ public partial class MainWindow : FluentWindow
 
         SetActiveNavButton(NavArticleComposerButton, NavSchiloIaButton);
 
+        SchiloIaPanel.ManagePresetsRequested += (_, _) => ShowPresetManager();
+
         _ = CheckForUpdatesOnStartupAsync();
     }
 
@@ -57,19 +59,41 @@ public partial class MainWindow : FluentWindow
         inactive.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
     }
 
+    // Les trois ecrans (Article Composer / SchiloIA / Gestion des modeles) se
+    // partagent la meme cellule de Grid : un seul visible a la fois.
+    private void ShowScreen(UIElement toShow)
+    {
+        ArticleComposerPanel.Visibility = toShow == ArticleComposerPanel ? Visibility.Visible : Visibility.Collapsed;
+        SchiloIaPanel.Visibility = toShow == SchiloIaPanel ? Visibility.Visible : Visibility.Collapsed;
+        PresetManagerPanel.Visibility = toShow == PresetManagerPanel ? Visibility.Visible : Visibility.Collapsed;
+
+        // Le bouton "Gerer les modeles..." n'a de sens que dans la zone SchiloIA
+        // (ecran principal ou ecran de gestion des modeles).
+        ManagePresetsNavButton.Visibility = toShow == SchiloIaPanel || toShow == PresetManagerPanel
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
     private void NavSchiloIaButton_Click(object sender, RoutedEventArgs e)
     {
-        ArticleComposerPanel.Visibility = Visibility.Collapsed;
-        SchiloIaPanel.Visibility = Visibility.Visible;
+        SchiloIaPanel.RefreshFromStore();
+        ShowScreen(SchiloIaPanel);
         SetActiveNavButton(NavSchiloIaButton, NavArticleComposerButton);
     }
 
     private void NavArticleComposerButton_Click(object sender, RoutedEventArgs e)
     {
-        SchiloIaPanel.Visibility = Visibility.Collapsed;
-        ArticleComposerPanel.Visibility = Visibility.Visible;
+        ShowScreen(ArticleComposerPanel);
         SetActiveNavButton(NavArticleComposerButton, NavSchiloIaButton);
     }
+
+    private void ShowPresetManager()
+    {
+        PresetManagerPanel.RefreshFromStore();
+        ShowScreen(PresetManagerPanel);
+    }
+
+    private void ManagePresetsNavButton_Click(object sender, RoutedEventArgs e) => ShowPresetManager();
 
     // Remplace la couleur par defaut des balises HTML d'AvalonEdit (theme HTML integre)
     // par la couleur choisie par Eric (parametrable via le bouton "Parametrage"). Le

@@ -38,6 +38,8 @@
             <Button x:Name="NavArticleComposerButton" DockPanel.Dock="Left" Content="Article Composer" Click="NavArticleComposerButton_Click" />
             <Button x:Name="AboutButton" DockPanel.Dock="Right" Content="A propos" Click="AboutButton_Click" Margin="0" />
             <Button x:Name="CheckUpdateButton" DockPanel.Dock="Right" Content="Verifier les mises a jour" Click="CheckUpdateButton_Click" />
+            <Button x:Name="ManagePresetsNavButton" DockPanel.Dock="Right" Content="Gerer les modeles..."
+                    Click="ManagePresetsNavButton_Click" Visibility="Collapsed" />
         </DockPanel>
 
         <!-- Zone de contenu : bascule entre l'ecran Article Composer et l'ecran SchiloIA -->
@@ -108,6 +110,7 @@
             </Grid>
 
             <local:SchiloIaView x:Name="SchiloIaPanel" Visibility="Collapsed" />
+            <local:PresetManagerView x:Name="PresetManagerPanel" Visibility="Collapsed" />
         </Grid>
         </DockPanel>
     </DockPanel>
