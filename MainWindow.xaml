@@ -35,8 +35,7 @@
         <!-- Navigation : SchiloIA | Article Composer .......... Mises a jour | A propos -->
         <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10" LastChildFill="False">
             <Button x:Name="NavSchiloIaButton" DockPanel.Dock="Left" Content="SchiloIA" Click="NavSchiloIaButton_Click" />
-            <Button x:Name="NavArticleComposerButton" DockPanel.Dock="Left" Content="Article Composer" Click="NavArticleComposerButton_Click"
-                    IsEnabled="False" />
+            <Button x:Name="NavArticleComposerButton" DockPanel.Dock="Left" Content="Article Composer" Click="NavArticleComposerButton_Click" />
             <Button x:Name="AboutButton" DockPanel.Dock="Right" Content="A propos" Click="AboutButton_Click" Margin="0" />
             <Button x:Name="CheckUpdateButton" DockPanel.Dock="Right" Content="Verifier les mises a jour" Click="CheckUpdateButton_Click" />
         </DockPanel>
