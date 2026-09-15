@@ -18,19 +18,35 @@ public partial class SchiloIaView : UserControl
     private PresetData _presets = new();
     private bool _suppressPresetEvents;
 
+    public event EventHandler? ManagePresetsRequested;
+
     public SchiloIaView()
     {
         InitializeComponent();
         Loaded += (_, _) => LoadPresetsAndSelectDefault();
     }
 
-    private void LoadPresetsAndSelectDefault()
+    // Appele par MainWindow a chaque fois qu'on revient sur cet ecran, au cas ou
+    // l'ecran "Gerer tous les modeles" ait modifie les presets entre-temps. Garde
+    // la selection courante si elle existe encore, sinon retombe sur le defaut.
+    public void RefreshFromStore()
+    {
+        var previouslySelected = PresetCombo.SelectedItem as string;
+        LoadPresetsAndSelectDefault(previouslySelected);
+    }
+
+    private void ManagePresetsButton_Click(object sender, RoutedEventArgs e)
+        => ManagePresetsRequested?.Invoke(this, EventArgs.Empty);
+
+    private void LoadPresetsAndSelectDefault(string? preferredSelection = null)
     {
         _presets = PresetStore.Load();
         RefreshPresetList();
 
         var names = _presets.Presets.Keys.ToList();
-        var selected = names.Contains(_presets.Default) ? _presets.Default : names.FirstOrDefault();
+        var selected = preferredSelection != null && names.Contains(preferredSelection)
+            ? preferredSelection
+            : (names.Contains(_presets.Default) ? _presets.Default : names.FirstOrDefault());
 
         _suppressPresetEvents = true;
         PresetCombo.SelectedItem = selected;

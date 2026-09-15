@@ -30,6 +30,7 @@
                 <Button x:Name="NewPresetButton" Content="Nouveau..." Click="NewPresetButton_Click" />
                 <Button x:Name="DeletePresetButton" Content="Supprimer" Click="DeletePresetButton_Click" />
                 <Button x:Name="SetDefaultButton" Content="★ Definir par defaut" Click="SetDefaultButton_Click" />
+                <Button x:Name="ManagePresetsButton" Content="Gerer tous les modeles..." Click="ManagePresetsButton_Click" />
             </StackPanel>
             <TextBlock x:Name="HintText" Foreground="#0067c0" Margin="0,6,0,0" TextWrapping="Wrap" />
         </StackPanel>

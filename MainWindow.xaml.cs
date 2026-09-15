@@ -36,25 +36,64 @@ public partial class MainWindow : FluentWindow
 
         CustomizeHtmlTagColor(ParseColor(AppSettings.Load().HtmlTagColor));
 
+        SetActiveNavButton(NavArticleComposerButton, NavSchiloIaButton);
+
+        SchiloIaPanel.ManagePresetsRequested += (_, _) => ShowPresetManager();
 
         _ = CheckForUpdatesOnStartupAsync();
     }
 
+    // L'onglet actif etait auparavant IsEnabled=false, ce qui le grise (visuellement
+    // confus : l'onglet courant semblait desactive). Bold + soulignement accent au lieu
+    // du style "disabled" par defaut ; les deux boutons restent cliquables.
+    private static void SetActiveNavButton(System.Windows.Controls.Button active, System.Windows.Controls.Button inactive)
+    {
+        active.FontWeight = FontWeights.Bold;
+        active.Opacity = 1;
+        active.BorderThickness = new Thickness(0, 0, 0, 3);
+        active.BorderBrush = new SolidColorBrush(Color.FromRgb(0xCA, 0x14, 0xFC));
+
+        inactive.FontWeight = FontWeights.Normal;
+        inactive.Opacity = 0.6;
+        inactive.BorderThickness = new Thickness(0);
+        inactive.ClearValue(System.Windows.Controls.Control.BorderBrushProperty);
+    }
+
+    // Les trois ecrans (Article Composer / SchiloIA / Gestion des modeles) se
+    // partagent la meme cellule de Grid : un seul visible a la fois.
+    private void ShowScreen(UIElement toShow)
+    {
+        ArticleComposerPanel.Visibility = toShow == ArticleComposerPanel ? Visibility.Visible : Visibility.Collapsed;
+        SchiloIaPanel.Visibility = toShow == SchiloIaPanel ? Visibility.Visible : Visibility.Collapsed;
+        PresetManagerPanel.Visibility = toShow == PresetManagerPanel ? Visibility.Visible : Visibility.Collapsed;
+
+        // Le bouton "Gerer les modeles..." n'a de sens que dans la zone SchiloIA
+        // (ecran principal ou ecran de gestion des modeles).
+        ManagePresetsNavButton.Visibility = toShow == SchiloIaPanel || toShow == PresetManagerPanel
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
     private void NavSchiloIaButton_Click(object sender, RoutedEventArgs e)
     {
-        ArticleComposerPanel.Visibility = Visibility.Collapsed;
-        SchiloIaPanel.Visibility = Visibility.Visible;
-        NavSchiloIaButton.IsEnabled = false;
-        NavArticleComposerButton.IsEnabled = true;
+        SchiloIaPanel.RefreshFromStore();
+        ShowScreen(SchiloIaPanel);
+        SetActiveNavButton(NavSchiloIaButton, NavArticleComposerButton);
     }
 
     private void NavArticleComposerButton_Click(object sender, RoutedEventArgs e)
     {
-        SchiloIaPanel.Visibility = Visibility.Collapsed;
-        ArticleComposerPanel.Visibility = Visibility.Visible;
-        NavArticleComposerButton.IsEnabled = false;
-        NavSchiloIaButton.IsEnabled = true;
+        ShowScreen(ArticleComposerPanel);
+        SetActiveNavButton(NavArticleComposerButton, NavSchiloIaButton);
     }
+
+    private void ShowPresetManager()
+    {
+        PresetManagerPanel.RefreshFromStore();
+        ShowScreen(PresetManagerPanel);
+    }
+
+    private void ManagePresetsNavButton_Click(object sender, RoutedEventArgs e) => ShowPresetManager();
 
     // Remplace la couleur par defaut des balises HTML d'AvalonEdit (theme HTML integre)
     // par la couleur choisie par Eric (parametrable via le bouton "Parametrage"). Le
