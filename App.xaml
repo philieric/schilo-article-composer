@@ -10,6 +10,30 @@
                 <ui:ThemesDictionary Theme="Unknown" />
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Overrides du theme "Sombre" personnalise (voir Services/ThemeManager.cs).
+                 Valeurs par defaut neutres/transparentes : Light et Systeme rendent donc
+                 exactement comme avant (le look natif WPF-UI), ThemeManager.Apply("Dark", ...)
+                 remplace ces valeurs par la palette de nuances sombres au demarrage/changement. -->
+            <SolidColorBrush x:Key="SchiloWindowBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="SchiloTitleBarBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="SchiloWindowBorderBrush" Color="Transparent" />
+            <Thickness x:Key="SchiloWindowBorderThickness">0</Thickness>
+            <SolidColorBrush x:Key="SchiloButtonBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="SchiloButtonBorderBrush" Color="Transparent" />
+            <Thickness x:Key="SchiloButtonBorderThickness">0</Thickness>
+            <SolidColorBrush x:Key="SchiloDividerBrush" Color="Transparent" />
+
+            <!-- Style de bouton commun a toute l'app (remplace les copies dupliquees
+                 dans MainWindow.xaml/SchiloIaView.xaml/PresetManagerView.xaml) : Background/
+                 BorderBrush suivent le theme personnalise sombre quand actif. -->
+            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                <Setter Property="Padding" Value="10,5" />
+                <Setter Property="Margin" Value="0,0,8,0" />
+                <Setter Property="Background" Value="{DynamicResource SchiloButtonBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource SchiloButtonBorderBrush}" />
+                <Setter Property="BorderThickness" Value="{DynamicResource SchiloButtonBorderThickness}" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

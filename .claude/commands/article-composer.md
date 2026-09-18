@@ -110,6 +110,38 @@ navigateur — l'apercu montre le HTML brut, pas le rendu final post-shortcodes.
 defaut sur Windows 11 (et installe automatiquement avec Edge sur Windows 10) —
 pas bundle par cette app (contrairement au runtime .NET, self-contained).
 
+## 1ter. Theme (3 choix, Sombre personnalise par defaut)
+
+Bouton "Thème..." sur la barre de nav (ThemeSettingsWindow) : 3 choix
+appliques immediatement + persistes dans `settings.json`
+(`AppSettingsData.ThemePreference`, "Light" | "System" | "Dark") :
+
+- **Clair** / **Système** : comportement WPF-UI natif inchange (Mica +
+  palette native), tel qu'il existait avant cette fonctionnalite.
+- **Sombre** (`ThemeManager.Dark`, **par defaut**) : PAS le sombre natif
+  WPF-UI+Mica — Eric a signale que celui-ci rend les limites entre barre de
+  titre/contenu/boutons trop peu contrastees (difficile de reperer le haut de
+  la fenetre pour la deplacer). Fix : `WindowBackdropType.None` (plus de
+  flou/transparence liee au fond d'ecran -> contraste garanti quel que soit
+  le fond d'ecran de l'utilisateur) + une palette de nuances de gris fonce
+  distinctes appliquee via des `DynamicResource` definies dans `App.xaml`
+  (`SchiloWindowBackgroundBrush`, `SchiloTitleBarBackgroundBrush`,
+  `SchiloButtonBackgroundBrush`, etc.) : barre de titre plus sombre que le
+  contenu, boutons avec fond+bordure visibles, bordure exterieure de la
+  fenetre, ligne de separation sous la barre de nav.
+
+Voir `Services/ThemeManager.cs` pour le detail. Le style de bouton commun
+(Padding/Margin/Background/BorderBrush via ces DynamicResource) est defini
+**une seule fois** dans `App.xaml` (`Style TargetType="Button"`) — ne pas
+le re-dupliquer dans `MainWindow.xaml`/`SchiloIaView.xaml`/
+`PresetManagerView.xaml`, ca casserait le theme sombre personnalise pour les
+boutons de l'ecran concerne (la copie locale masquerait le style global).
+
+**Piege rencontre et corrige** : `SystemThemeWatcher.UnWatch(window)` leve
+`InvalidOperationException` si la fenetre n'est pas encore chargee (`IsLoaded`
+false) ou n'a jamais ete "watchee" — ne jamais l'appeler sans garde (voir
+`ThemeManager.UnwatchIfLoaded`).
+
 ## 2. Build & run
 
 ```bash

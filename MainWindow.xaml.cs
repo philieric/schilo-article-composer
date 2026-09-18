@@ -7,7 +7,6 @@ using ICSharpCode.AvalonEdit.Highlighting;
 using Microsoft.Win32;
 using SchiloArticleComposer.Models;
 using SchiloArticleComposer.Services;
-using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using MessageBox = System.Windows.MessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
@@ -32,10 +31,9 @@ public partial class MainWindow : FluentWindow
         InitializeComponent();
         SectionsList.ItemsSource = _sections;
 
-        ApplicationThemeManager.ApplySystemTheme();
-        SystemThemeWatcher.Watch(this);
-
-        CustomizeHtmlTagColor(ParseColor(AppSettings.Load().HtmlTagColor));
+        var settings = AppSettings.Load();
+        ThemeManager.Apply(settings.ThemePreference, this);
+        CustomizeHtmlTagColor(ParseColor(settings.HtmlTagColor));
 
         SetActiveNavButton(NavArticleComposerButton, NavSchiloIaButton);
 
@@ -396,6 +394,11 @@ public partial class MainWindow : FluentWindow
     {
         if (_selected == null) return;
         new HtmlPreviewWindow(_selected.Title, _selected.ContentHtml) { Owner = this }.Show();
+    }
+
+    private void ThemeButton_Click(object sender, RoutedEventArgs e)
+    {
+        new ThemeSettingsWindow(this) { Owner = this }.ShowDialog();
     }
 
     private void SectionsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)

@@ -1,0 +1,36 @@
+<ui:FluentWindow x:Class="SchiloArticleComposer.ThemeSettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        Title="Thème" Height="280" Width="420"
+        Icon="Assets/logo.ico"
+        WindowStartupLocation="CenterOwner"
+        WindowBackdropType="Mica"
+        ExtendsContentIntoTitleBar="True"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <DockPanel>
+        <ui:TitleBar DockPanel.Dock="Top" Title="" ShowMaximize="False" ShowMinimize="False" />
+        <StackPanel Margin="20" DockPanel.Dock="Top">
+            <TextBlock Text="Thème de l'application" FontWeight="Bold" FontSize="15" Margin="0,0,0,4" />
+            <TextBlock TextWrapping="Wrap" Foreground="#888" Margin="0,0,0,16">
+                Le thème s'applique immédiatement. Choix mémorisé pour les prochains démarrages.
+            </TextBlock>
+
+            <RadioButton x:Name="LightRadio" GroupName="Theme" Content="Clair" Margin="0,0,0,10"
+                         Checked="ThemeRadio_Checked" />
+            <RadioButton x:Name="SystemRadio" GroupName="Theme" Content="Système (suit Windows)" Margin="0,0,0,10"
+                         Checked="ThemeRadio_Checked" />
+            <RadioButton x:Name="DarkRadio" GroupName="Theme" Margin="0,0,0,10" Checked="ThemeRadio_Checked">
+                <StackPanel>
+                    <TextBlock Text="Sombre de l'application (par défaut)" />
+                    <TextBlock Text="Nuances distinctes pour la barre de titre, le contenu et les boutons."
+                               Foreground="#888" FontSize="11" TextWrapping="Wrap" />
+                </StackPanel>
+            </RadioButton>
+
+            <Button x:Name="CloseButton" Content="Fermer" Click="CloseButton_Click"
+                    HorizontalAlignment="Right" Padding="10,5" Margin="0,10,0,0" />
+        </StackPanel>
+    </DockPanel>
+</ui:FluentWindow>
