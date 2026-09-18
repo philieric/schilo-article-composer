@@ -110,6 +110,64 @@ navigateur — l'apercu montre le HTML brut, pas le rendu final post-shortcodes.
 defaut sur Windows 11 (et installe automatiquement avec Edge sur Windows 10) —
 pas bundle par cette app (contrairement au runtime .NET, self-contained).
 
+## 1ter. Theme (3 choix, Sombre personnalise par defaut)
+
+Bouton "Thème..." sur la barre de nav (ThemeSettingsWindow) : 3 choix
+appliques immediatement + persistes dans `settings.json`
+(`AppSettingsData.ThemePreference`, "Light" | "System" | "Dark") :
+
+- **Clair** / **Système** : comportement WPF-UI natif inchange (Mica +
+  palette native), tel qu'il existait avant cette fonctionnalite.
+- **Sombre** (`ThemeManager.Dark`, **par defaut**) : PAS le sombre natif
+  WPF-UI+Mica — Eric a signale que celui-ci rend les limites entre barre de
+  titre/contenu/boutons trop peu contrastees (difficile de reperer le haut de
+  la fenetre pour la deplacer). Fix : `WindowBackdropType.None` (plus de
+  flou/transparence liee au fond d'ecran -> contraste garanti quel que soit
+  le fond d'ecran de l'utilisateur) + une palette de nuances de gris fonce
+  distinctes appliquee via des `DynamicResource` definies dans `App.xaml`
+  (`SchiloWindowBackgroundBrush`, `SchiloTitleBarBackgroundBrush`,
+  `SchiloButtonBackgroundBrush`, etc.) : barre de titre plus sombre que le
+  contenu, boutons avec fond+bordure visibles, bordure exterieure de la
+  fenetre, ligne de separation sous la barre de nav.
+
+Voir `Services/ThemeManager.cs` pour le detail. Le style de bouton
+(Padding/Margin/Background/BorderBrush via ces DynamicResource) est
+**duplique intentionnellement** dans `MainWindow.xaml` (`Window.Resources`),
+`SchiloIaView.xaml` et `PresetManagerView.xaml` (`UserControl.Resources`).
+
+**Piege rencontre et corrige (important, a ne pas refaire)** : le style de
+bouton avait d'abord ete centralise dans `App.xaml` pour eviter cette
+duplication — resultat : **tout le texte des boutons devenait noir sur fond
+sombre** (illisible), meme si Eric regardait l'app en Clair ca ne se
+remarquait pas (texte noir sur fond clair = normal), d'ou une confusion
+initiale sur l'origine du bug. Cause : `<Style TargetType="Button"
+BasedOn="{StaticResource {x:Type Button}}">` place **directement dans
+`Application.Resources`**, au **meme niveau** que `<ui:ControlsDictionary />`
+fusionne — la resolution de `{StaticResource {x:Type Button}}` devient
+auto-referente a ce niveau precis (WPF ne retrouve pas le style WPF-UI et
+retombe silencieusement sur le `Button` par defaut, dont le texte est noir,
+constant quel que soit le theme app). Le meme `BasedOn="{StaticResource
+{x:Type Button}}"` fonctionne SANS probleme quand il est declare dans
+`Window.Resources`/`UserControl.Resources` d'une fenetre/vue (un niveau EN
+DESSOUS d'`Application.Resources`, sans ambiguite de resolution) — c'est pour
+ca que la duplication par ecran, bien que repetitive, est la version qui
+marche. Ne pas re-tenter la centralisation sans un test pixel-precis (voir
+methode ci-dessous) pour verifier que le texte reste blanc en sombre.
+
+**Piege rencontre et corrige** : `SystemThemeWatcher.UnWatch(window)` leve
+`InvalidOperationException` si la fenetre n'est pas encore chargee (`IsLoaded`
+false) ou n'a jamais ete "watchee" — ne jamais l'appeler sans garde (voir
+`ThemeManager.UnwatchIfLoaded`).
+
+**Methode de verification qui a marche pour ce bug** : une capture d'ecran
+lue/interpretee visuellement peut être trompeuse sur du texte a faible
+contraste (une premiere lecture visuelle de la capture a laisse croire, a
+tort, que le texte des onglets etait blanc et lisible). Pour trancher,
+echantillonner les pixels reels (`Bitmap.GetPixel`, comparer la luminosite
+R+G+B d'une zone de texte attendu a celle du fond) plutot que de se fier a
+une relecture visuelle de l'image — c'est ce qui a confirme le bug la ou la
+premiere inspection visuelle ne l'avait pas detecte.
+
 ## 2. Build & run
 
 ```bash

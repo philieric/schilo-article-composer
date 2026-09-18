@@ -7,6 +7,12 @@ public class AppSettingsData
 {
     // Format "#RRGGBB". Mauve vif par defaut (demande d'Eric).
     public string HtmlTagColor { get; set; } = "#CA14FC";
+
+    // "Light" | "System" | "Dark". "Dark" (theme sombre personnalise, pas juste le
+    // sombre WPF-UI/Mica par defaut) par defaut : demande d'Eric le 2026-09-18, le
+    // sombre natif (Mica) rend les limites entre barre de titre/contenu/boutons trop
+    // peu contrastees. Voir ThemeManager pour le detail des nuances appliquees.
+    public string ThemePreference { get; set; } = "Dark";
 }
 
 public static class AppSettings

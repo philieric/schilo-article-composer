@@ -10,6 +10,28 @@
                 <ui:ThemesDictionary Theme="Unknown" />
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
+
+            <!-- Overrides du theme "Sombre" personnalise (voir Services/ThemeManager.cs).
+                 Valeurs par defaut neutres/transparentes : Light et Systeme rendent donc
+                 exactement comme avant (le look natif WPF-UI), ThemeManager.Apply("Dark", ...)
+                 remplace ces valeurs par la palette de nuances sombres au demarrage/changement. -->
+            <SolidColorBrush x:Key="SchiloWindowBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="SchiloTitleBarBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="SchiloWindowBorderBrush" Color="Transparent" />
+            <Thickness x:Key="SchiloWindowBorderThickness">0</Thickness>
+            <SolidColorBrush x:Key="SchiloButtonBackgroundBrush" Color="Transparent" />
+            <SolidColorBrush x:Key="SchiloButtonBorderBrush" Color="Transparent" />
+            <Thickness x:Key="SchiloButtonBorderThickness">0</Thickness>
+            <SolidColorBrush x:Key="SchiloDividerBrush" Color="Transparent" />
+
+            <!-- PAS de Style Button implicite ici : {StaticResource {x:Type Button}} depuis
+                 CE MEME niveau (Application.Resources, la ou ui:ControlsDictionary est
+                 fusionne) est auto-referent - WPF ne retrouve pas le style WPF-UI et retombe
+                 sur le Button par defaut (texte noir, invisible en sombre). Le style Button
+                 (avec BasedOn) doit rester declare dans chaque fenetre/UserControl : ca
+                 fonctionne car {StaticResource {x:Type Button}} y est resolu depuis un niveau
+                 EN DESSOUS d'Application.Resources, sans ambiguite. Voir MainWindow.xaml,
+                 SchiloIaView.xaml, PresetManagerView.xaml. -->
         </ResourceDictionary>
     </Application.Resources>
 </Application>
