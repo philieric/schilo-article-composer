@@ -5,9 +5,11 @@
         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="10,5" />
             <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Background" Value="{DynamicResource SchiloButtonBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SchiloButtonBorderBrush}" />
+            <Setter Property="BorderThickness" Value="{DynamicResource SchiloButtonBorderThickness}" />
         </Style>
     </UserControl.Resources>
-
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />

@@ -30,12 +30,13 @@ Eric rédige de longs articles bibliques dans Word (ex. `PAR001 OK Le semeur.doc
 **Le contenu avant le premier titre H2 est volontairement ignoré** (page de
 garde, photo, bloc "Textes bibliques") — hors périmètre, décision d'Eric.
 
-**Portée actuelle : seulement le générateur XML.** L'import côté thème
-(bouton "Importer XML" dans l'éditeur Schilo Builder, remplacement des
-sections `paragraphe` existantes en laissant les autres types — `liens-articles`,
-`conclusion`, etc. — intacts) est une décision déjà prise mais **pas encore
-construite** ; ce sera un chantier séparé, côté dépôt `schilo-theme`, quand
-Eric sera prêt.
+**Cote import : deja construit dans `schilo-theme`.** Le bouton "Importer XML"
+existe dans l'editeur Schilo Builder (remplace les sections `paragraphe`
+existantes en laissant les autres types — `liens-articles`, `conclusion`,
+etc. — intacts). Cet outil (Article Composer) ne s'occupe que de la
+generation du XML ; ne pas proposer de (re)construire l'import cote theme,
+c'est deja fait — voir le depot `schilo-theme` pour le detail de son
+fonctionnement si besoin d'evolution.
 
 ## 1. Architecture
 
@@ -55,12 +56,117 @@ SchiloArticleComposer/
                                     paragraphe (gras isole -> <h3>, gras/italique
                                     en ligne -> <strong>/<em>, numPr -> <ul><li>)
   Services/XmlExporter.cs        — ecrit <schilo_sections><section type="paragraphe">...
+  HtmlPreviewWindow.xaml(.cs)    — apercu du rendu HTML d'une section, avec le
+                                    VRAI CSS de schilo.org (WebView2 charge les
+                                    feuilles de style en direct depuis le site,
+                                    voir section 1bis) — necessite internet
+  ExportHistoryWindow.xaml(.cs)  — historique des exports XML (Models/
+                                    ExportHistoryEntry.cs, Services/
+                                    ExportHistoryStore.cs, JSON sous
+                                    %LocalAppData%\Schilo Article Composer\)
   installer/Product.wxs          — installeur WiX (voir section 3)
   installer/license.rtf
 ```
 
 Dépendance clé : `DocumentFormat.OpenXml` (NuGet) — ne jamais tenter de
 parser le XML du docx à la main, la lib gère les styles hérités/`BasedOn`.
+
+## 1bis. Aperçu HTML (WebView2 + CSS reel de schilo.org)
+
+Le bouton "Aperçu HTML..." (a cote du label "Contenu (HTML)") ouvre une fenetre
+WebView2 qui reproduit la structure DOM reelle d'une section `paragraphe` sur
+schilo.org (verifiee en direct sur le site le 2026-09-18) :
+
+```html
+<div class="schilo-container schilo-single-layout"><div class="schilo-single-main">
+  <div class="schilo-post-sections schilo-post-per">
+    <section class="schilo-section schilo-section-paragraphe schilo-per schilo-per-paragraphe schilo-migrated">
+      <h2 class="schilo-section-title">{Titre}</h2>
+      <div class="schilo-section-content">{ContentHtml}</div>
+    </section>
+  </div>
+</div></div>
+```
+
+Les feuilles de style (`style.css`, `single.css`, `builder-front.css`, etc.)
+sont chargees en `<link>` directement depuis `https://schilo.org/wp-content/
+themes/schilo-theme/...` — pas de copie locale, donc toujours a jour avec le
+theme, mais **necessite une connexion internet** pour afficher l'apercu.
+
+**Piege rencontre et corrige** : WebView2 utilise par defaut un dossier de
+profil a cote de l'exe pour son cache — ca echoue avec `E_ACCESSDENIED`
+(0x80070005) une fois installe (dossier non inscriptible). Fix : passer un
+`userDataFolder` explicite sous `%LocalAppData%\Schilo Article Composer\
+WebView2\` via `CoreWebView2Environment.CreateAsync(userDataFolder: ...)`
+avant `EnsureCoreWebView2Async(environment)` — ne jamais utiliser la version
+sans argument.
+
+**Limite connue, pas un bug** : les shortcodes WordPress du type `[bib]Matthieu
+9.1-8[/bib]` (references bibliques interactives) restent affiches tels quels
+dans l'apercu, car ils sont traites cote serveur par WordPress et non par le
+navigateur — l'apercu montre le HTML brut, pas le rendu final post-shortcodes.
+
+**Prerequis machine cible** : necessite le WebView2 Runtime, present par
+defaut sur Windows 11 (et installe automatiquement avec Edge sur Windows 10) —
+pas bundle par cette app (contrairement au runtime .NET, self-contained).
+
+## 1ter. Theme (3 choix, Sombre personnalise par defaut)
+
+Bouton "Thème..." sur la barre de nav (ThemeSettingsWindow) : 3 choix
+appliques immediatement + persistes dans `settings.json`
+(`AppSettingsData.ThemePreference`, "Light" | "System" | "Dark") :
+
+- **Clair** / **Système** : comportement WPF-UI natif inchange (Mica +
+  palette native), tel qu'il existait avant cette fonctionnalite.
+- **Sombre** (`ThemeManager.Dark`, **par defaut**) : PAS le sombre natif
+  WPF-UI+Mica — Eric a signale que celui-ci rend les limites entre barre de
+  titre/contenu/boutons trop peu contrastees (difficile de reperer le haut de
+  la fenetre pour la deplacer). Fix : `WindowBackdropType.None` (plus de
+  flou/transparence liee au fond d'ecran -> contraste garanti quel que soit
+  le fond d'ecran de l'utilisateur) + une palette de nuances de gris fonce
+  distinctes appliquee via des `DynamicResource` definies dans `App.xaml`
+  (`SchiloWindowBackgroundBrush`, `SchiloTitleBarBackgroundBrush`,
+  `SchiloButtonBackgroundBrush`, etc.) : barre de titre plus sombre que le
+  contenu, boutons avec fond+bordure visibles, bordure exterieure de la
+  fenetre, ligne de separation sous la barre de nav.
+
+Voir `Services/ThemeManager.cs` pour le detail. Le style de bouton
+(Padding/Margin/Background/BorderBrush via ces DynamicResource) est
+**duplique intentionnellement** dans `MainWindow.xaml` (`Window.Resources`),
+`SchiloIaView.xaml` et `PresetManagerView.xaml` (`UserControl.Resources`).
+
+**Piege rencontre et corrige (important, a ne pas refaire)** : le style de
+bouton avait d'abord ete centralise dans `App.xaml` pour eviter cette
+duplication — resultat : **tout le texte des boutons devenait noir sur fond
+sombre** (illisible), meme si Eric regardait l'app en Clair ca ne se
+remarquait pas (texte noir sur fond clair = normal), d'ou une confusion
+initiale sur l'origine du bug. Cause : `<Style TargetType="Button"
+BasedOn="{StaticResource {x:Type Button}}">` place **directement dans
+`Application.Resources`**, au **meme niveau** que `<ui:ControlsDictionary />`
+fusionne — la resolution de `{StaticResource {x:Type Button}}` devient
+auto-referente a ce niveau precis (WPF ne retrouve pas le style WPF-UI et
+retombe silencieusement sur le `Button` par defaut, dont le texte est noir,
+constant quel que soit le theme app). Le meme `BasedOn="{StaticResource
+{x:Type Button}}"` fonctionne SANS probleme quand il est declare dans
+`Window.Resources`/`UserControl.Resources` d'une fenetre/vue (un niveau EN
+DESSOUS d'`Application.Resources`, sans ambiguite de resolution) — c'est pour
+ca que la duplication par ecran, bien que repetitive, est la version qui
+marche. Ne pas re-tenter la centralisation sans un test pixel-precis (voir
+methode ci-dessous) pour verifier que le texte reste blanc en sombre.
+
+**Piege rencontre et corrige** : `SystemThemeWatcher.UnWatch(window)` leve
+`InvalidOperationException` si la fenetre n'est pas encore chargee (`IsLoaded`
+false) ou n'a jamais ete "watchee" — ne jamais l'appeler sans garde (voir
+`ThemeManager.UnwatchIfLoaded`).
+
+**Methode de verification qui a marche pour ce bug** : une capture d'ecran
+lue/interpretee visuellement peut être trompeuse sur du texte a faible
+contraste (une premiere lecture visuelle de la capture a laisse croire, a
+tort, que le texte des onglets etait blanc et lisible). Pour trancher,
+echantillonner les pixels reels (`Bitmap.GetPixel`, comparer la luminosite
+R+G+B d'une zone de texte attendu a celle du fond) plutot que de se fier a
+une relecture visuelle de l'image — c'est ce qui a confirme le bug la ou la
+premiere inspection visuelle ne l'avait pas detecte.
 
 ## 2. Build & run
 

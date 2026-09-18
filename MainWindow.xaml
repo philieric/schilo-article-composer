@@ -14,11 +14,16 @@
         <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Padding" Value="10,5" />
             <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Background" Value="{DynamicResource SchiloButtonBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SchiloButtonBorderBrush}" />
+            <Setter Property="BorderThickness" Value="{DynamicResource SchiloButtonBorderThickness}" />
         </Style>
     </Window.Resources>
-
+    <Border Background="{DynamicResource SchiloWindowBackgroundBrush}"
+            BorderBrush="{DynamicResource SchiloWindowBorderBrush}"
+            BorderThickness="{DynamicResource SchiloWindowBorderThickness}">
     <DockPanel>
-        <ui:TitleBar DockPanel.Dock="Top" Title="Schilo Article Composer" />
+        <ui:TitleBar DockPanel.Dock="Top" Title="Schilo Article Composer" Background="{DynamicResource SchiloTitleBarBackgroundBrush}" />
 
         <DockPanel Margin="10">
 
@@ -33,14 +38,20 @@
         </StackPanel>
 
         <!-- Navigation : SchiloIA | Article Composer .......... Mises a jour | A propos -->
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,10" LastChildFill="False">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8" LastChildFill="False">
             <Button x:Name="NavSchiloIaButton" DockPanel.Dock="Left" Content="SchiloIA" Click="NavSchiloIaButton_Click" />
             <Button x:Name="NavArticleComposerButton" DockPanel.Dock="Left" Content="Article Composer" Click="NavArticleComposerButton_Click" />
             <Button x:Name="AboutButton" DockPanel.Dock="Right" Content="A propos" Click="AboutButton_Click" Margin="0" />
             <Button x:Name="CheckUpdateButton" DockPanel.Dock="Right" Content="Verifier les mises a jour" Click="CheckUpdateButton_Click" />
             <Button x:Name="ManagePresetsNavButton" DockPanel.Dock="Right" Content="Gerer les modeles..."
                     Click="ManagePresetsNavButton_Click" Visibility="Collapsed" />
+            <Button x:Name="ThemeButton" DockPanel.Dock="Right" Content="Thème..." Click="ThemeButton_Click" />
         </DockPanel>
+
+        <!-- Ligne de separation sous la barre de navigation (theme sombre personnalise
+             uniquement) : Eric a signale qu'on distingue mal la limite entre la nav et
+             le contenu. -->
+        <Border DockPanel.Dock="Top" Height="1" Margin="0,0,0,10" Background="{DynamicResource SchiloDividerBrush}" />
 
         <!-- Zone de contenu : bascule entre l'ecran Article Composer et l'ecran SchiloIA -->
         <Grid>
@@ -51,6 +62,7 @@
                         <Button x:Name="OpenButton" DockPanel.Dock="Left" Content="Ouvrir un document Word (.docx)..." Click="OpenButton_Click" />
                         <Button x:Name="ExportButton" DockPanel.Dock="Left" Content="Exporter XML..." Click="ExportButton_Click" IsEnabled="False" />
                         <Button x:Name="HtmlTagColorButton" DockPanel.Dock="Right" Content="Couleur tag HTML..." Click="HtmlTagColorButton_Click" Margin="0" />
+                        <Button x:Name="ExportHistoryButton" DockPanel.Dock="Right" Content="Historique des exports..." Click="ExportHistoryButton_Click" />
                         <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="15,0,0,0" Foreground="#666" />
                     </DockPanel>
 
@@ -99,7 +111,11 @@
                             <TextBox x:Name="TitleBox" DockPanel.Dock="Top" Margin="0,0,0,10" Padding="6"
                                      TextChanged="TitleBox_TextChanged" IsEnabled="False" />
 
-                            <TextBlock DockPanel.Dock="Top" Text="Contenu (HTML) — editable" FontWeight="Bold" Margin="0,0,0,4" />
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Text="Contenu (HTML) — editable" FontWeight="Bold" VerticalAlignment="Center" />
+                                <Button x:Name="PreviewHtmlButton" DockPanel.Dock="Right" Content="Aperçu HTML..." Click="PreviewHtmlButton_Click"
+                                        Padding="8,3" Margin="0" IsEnabled="False" />
+                            </DockPanel>
                             <avalonEdit:TextEditor x:Name="ContentBox" SyntaxHighlighting="HTML"
                                      FontFamily="Consolas" FontSize="13" WordWrap="True" ShowLineNumbers="True"
                                      Background="#1E1E1E" Foreground="#D4D4D4" LineNumbersForeground="#6E7681" Padding="6"
@@ -114,4 +130,5 @@
         </Grid>
         </DockPanel>
     </DockPanel>
+    </Border>
 </ui:FluentWindow>

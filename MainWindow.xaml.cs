@@ -7,7 +7,6 @@ using ICSharpCode.AvalonEdit.Highlighting;
 using Microsoft.Win32;
 using SchiloArticleComposer.Models;
 using SchiloArticleComposer.Services;
-using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
 using MessageBox = System.Windows.MessageBox;
 using MessageBoxButton = System.Windows.MessageBoxButton;
@@ -25,16 +24,16 @@ public partial class MainWindow : FluentWindow
     private readonly AutoUpdater _autoUpdater = new();
     private DocSection? _selected;
     private bool _suppressEdits;
+    private string? _currentDocxPath;
 
     public MainWindow()
     {
         InitializeComponent();
         SectionsList.ItemsSource = _sections;
 
-        ApplicationThemeManager.ApplySystemTheme();
-        SystemThemeWatcher.Watch(this);
-
-        CustomizeHtmlTagColor(ParseColor(AppSettings.Load().HtmlTagColor));
+        var settings = AppSettings.Load();
+        ThemeManager.Apply(settings.ThemePreference, this);
+        CustomizeHtmlTagColor(ParseColor(settings.HtmlTagColor));
 
         SetActiveNavButton(NavArticleComposerButton, NavSchiloIaButton);
 
@@ -279,6 +278,7 @@ public partial class MainWindow : FluentWindow
                 _sections.Add(section);
             }
 
+            _currentDocxPath = dialog.FileName;
             FileNameText.Text = System.IO.Path.GetFileName(dialog.FileName);
             ExportButton.IsEnabled = _sections.Count > 0;
 
@@ -369,12 +369,36 @@ public partial class MainWindow : FluentWindow
             _exporter.Export(_sections, dialog.FileName);
             StatusText.Text = $"Export termine : {included.Count} section(s) ecrite(s) dans {dialog.FileName}";
             MessageBox.Show("Export XML termine.", "Termine", MessageBoxButton.OK, MessageBoxImage.Information);
+
+            ExportHistoryStore.Add(new ExportHistoryEntry
+            {
+                Date = DateTime.Now,
+                SourceDocxPath = _currentDocxPath ?? string.Empty,
+                ExportedXmlPath = dialog.FileName,
+                SectionCount = included.Count,
+            });
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Echec de l'export :\n{ex.Message}", "Erreur",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    private void ExportHistoryButton_Click(object sender, RoutedEventArgs e)
+    {
+        new ExportHistoryWindow { Owner = this }.ShowDialog();
+    }
+
+    private void PreviewHtmlButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selected == null) return;
+        new HtmlPreviewWindow(_selected.Title, _selected.ContentHtml) { Owner = this }.Show();
+    }
+
+    private void ThemeButton_Click(object sender, RoutedEventArgs e)
+    {
+        new ThemeSettingsWindow(this) { Owner = this }.ShowDialog();
     }
 
     private void SectionsList_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
@@ -386,6 +410,7 @@ public partial class MainWindow : FluentWindow
         ContentBox.Text = _selected?.ContentHtml ?? string.Empty;
         TitleBox.IsEnabled = _selected != null;
         ContentBox.IsEnabled = _selected != null;
+        PreviewHtmlButton.IsEnabled = _selected != null;
 
         _suppressEdits = false;
     }
