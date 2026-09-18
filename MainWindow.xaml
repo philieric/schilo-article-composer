@@ -51,6 +51,7 @@
                         <Button x:Name="OpenButton" DockPanel.Dock="Left" Content="Ouvrir un document Word (.docx)..." Click="OpenButton_Click" />
                         <Button x:Name="ExportButton" DockPanel.Dock="Left" Content="Exporter XML..." Click="ExportButton_Click" IsEnabled="False" />
                         <Button x:Name="HtmlTagColorButton" DockPanel.Dock="Right" Content="Couleur tag HTML..." Click="HtmlTagColorButton_Click" Margin="0" />
+                        <Button x:Name="ExportHistoryButton" DockPanel.Dock="Right" Content="Historique des exports..." Click="ExportHistoryButton_Click" />
                         <TextBlock x:Name="FileNameText" VerticalAlignment="Center" Margin="15,0,0,0" Foreground="#666" />
                     </DockPanel>
 
@@ -99,7 +100,11 @@
                             <TextBox x:Name="TitleBox" DockPanel.Dock="Top" Margin="0,0,0,10" Padding="6"
                                      TextChanged="TitleBox_TextChanged" IsEnabled="False" />
 
-                            <TextBlock DockPanel.Dock="Top" Text="Contenu (HTML) — editable" FontWeight="Bold" Margin="0,0,0,4" />
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,4" LastChildFill="False">
+                                <TextBlock DockPanel.Dock="Left" Text="Contenu (HTML) — editable" FontWeight="Bold" VerticalAlignment="Center" />
+                                <Button x:Name="PreviewHtmlButton" DockPanel.Dock="Right" Content="Aperçu HTML..." Click="PreviewHtmlButton_Click"
+                                        Padding="8,3" Margin="0" IsEnabled="False" />
+                            </DockPanel>
                             <avalonEdit:TextEditor x:Name="ContentBox" SyntaxHighlighting="HTML"
                                      FontFamily="Consolas" FontSize="13" WordWrap="True" ShowLineNumbers="True"
                                      Background="#1E1E1E" Foreground="#D4D4D4" LineNumbersForeground="#6E7681" Padding="6"

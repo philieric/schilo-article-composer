@@ -56,12 +56,59 @@ SchiloArticleComposer/
                                     paragraphe (gras isole -> <h3>, gras/italique
                                     en ligne -> <strong>/<em>, numPr -> <ul><li>)
   Services/XmlExporter.cs        — ecrit <schilo_sections><section type="paragraphe">...
+  HtmlPreviewWindow.xaml(.cs)    — apercu du rendu HTML d'une section, avec le
+                                    VRAI CSS de schilo.org (WebView2 charge les
+                                    feuilles de style en direct depuis le site,
+                                    voir section 1bis) — necessite internet
+  ExportHistoryWindow.xaml(.cs)  — historique des exports XML (Models/
+                                    ExportHistoryEntry.cs, Services/
+                                    ExportHistoryStore.cs, JSON sous
+                                    %LocalAppData%\Schilo Article Composer\)
   installer/Product.wxs          — installeur WiX (voir section 3)
   installer/license.rtf
 ```
 
 Dépendance clé : `DocumentFormat.OpenXml` (NuGet) — ne jamais tenter de
 parser le XML du docx à la main, la lib gère les styles hérités/`BasedOn`.
+
+## 1bis. Aperçu HTML (WebView2 + CSS reel de schilo.org)
+
+Le bouton "Aperçu HTML..." (a cote du label "Contenu (HTML)") ouvre une fenetre
+WebView2 qui reproduit la structure DOM reelle d'une section `paragraphe` sur
+schilo.org (verifiee en direct sur le site le 2026-09-18) :
+
+```html
+<div class="schilo-container schilo-single-layout"><div class="schilo-single-main">
+  <div class="schilo-post-sections schilo-post-per">
+    <section class="schilo-section schilo-section-paragraphe schilo-per schilo-per-paragraphe schilo-migrated">
+      <h2 class="schilo-section-title">{Titre}</h2>
+      <div class="schilo-section-content">{ContentHtml}</div>
+    </section>
+  </div>
+</div></div>
+```
+
+Les feuilles de style (`style.css`, `single.css`, `builder-front.css`, etc.)
+sont chargees en `<link>` directement depuis `https://schilo.org/wp-content/
+themes/schilo-theme/...` — pas de copie locale, donc toujours a jour avec le
+theme, mais **necessite une connexion internet** pour afficher l'apercu.
+
+**Piege rencontre et corrige** : WebView2 utilise par defaut un dossier de
+profil a cote de l'exe pour son cache — ca echoue avec `E_ACCESSDENIED`
+(0x80070005) une fois installe (dossier non inscriptible). Fix : passer un
+`userDataFolder` explicite sous `%LocalAppData%\Schilo Article Composer\
+WebView2\` via `CoreWebView2Environment.CreateAsync(userDataFolder: ...)`
+avant `EnsureCoreWebView2Async(environment)` — ne jamais utiliser la version
+sans argument.
+
+**Limite connue, pas un bug** : les shortcodes WordPress du type `[bib]Matthieu
+9.1-8[/bib]` (references bibliques interactives) restent affiches tels quels
+dans l'apercu, car ils sont traites cote serveur par WordPress et non par le
+navigateur — l'apercu montre le HTML brut, pas le rendu final post-shortcodes.
+
+**Prerequis machine cible** : necessite le WebView2 Runtime, present par
+defaut sur Windows 11 (et installe automatiquement avec Edge sur Windows 10) —
+pas bundle par cette app (contrairement au runtime .NET, self-contained).
 
 ## 2. Build & run
 
