@@ -30,12 +30,13 @@ Eric rédige de longs articles bibliques dans Word (ex. `PAR001 OK Le semeur.doc
 **Le contenu avant le premier titre H2 est volontairement ignoré** (page de
 garde, photo, bloc "Textes bibliques") — hors périmètre, décision d'Eric.
 
-**Portée actuelle : seulement le générateur XML.** L'import côté thème
-(bouton "Importer XML" dans l'éditeur Schilo Builder, remplacement des
-sections `paragraphe` existantes en laissant les autres types — `liens-articles`,
-`conclusion`, etc. — intacts) est une décision déjà prise mais **pas encore
-construite** ; ce sera un chantier séparé, côté dépôt `schilo-theme`, quand
-Eric sera prêt.
+**Cote import : deja construit dans `schilo-theme`.** Le bouton "Importer XML"
+existe dans l'editeur Schilo Builder (remplace les sections `paragraphe`
+existantes en laissant les autres types — `liens-articles`, `conclusion`,
+etc. — intacts). Cet outil (Article Composer) ne s'occupe que de la
+generation du XML ; ne pas proposer de (re)construire l'import cote theme,
+c'est deja fait — voir le depot `schilo-theme` pour le detail de son
+fonctionnement si besoin d'evolution.
 
 ## 1. Architecture
 
