@@ -10,6 +10,15 @@
         WindowStartupLocation="CenterScreen"
         WindowBackdropType="Mica"
         ExtendsContentIntoTitleBar="True">
+    <Window.Resources>
+        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Background" Value="{DynamicResource SchiloButtonBackgroundBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SchiloButtonBorderBrush}" />
+            <Setter Property="BorderThickness" Value="{DynamicResource SchiloButtonBorderThickness}" />
+        </Style>
+    </Window.Resources>
     <Border Background="{DynamicResource SchiloWindowBackgroundBrush}"
             BorderBrush="{DynamicResource SchiloWindowBorderBrush}"
             BorderThickness="{DynamicResource SchiloWindowBorderThickness}">

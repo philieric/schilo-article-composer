@@ -24,16 +24,14 @@
             <Thickness x:Key="SchiloButtonBorderThickness">0</Thickness>
             <SolidColorBrush x:Key="SchiloDividerBrush" Color="Transparent" />
 
-            <!-- Style de bouton commun a toute l'app (remplace les copies dupliquees
-                 dans MainWindow.xaml/SchiloIaView.xaml/PresetManagerView.xaml) : Background/
-                 BorderBrush suivent le theme personnalise sombre quand actif. -->
-            <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-                <Setter Property="Padding" Value="10,5" />
-                <Setter Property="Margin" Value="0,0,8,0" />
-                <Setter Property="Background" Value="{DynamicResource SchiloButtonBackgroundBrush}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource SchiloButtonBorderBrush}" />
-                <Setter Property="BorderThickness" Value="{DynamicResource SchiloButtonBorderThickness}" />
-            </Style>
+            <!-- PAS de Style Button implicite ici : {StaticResource {x:Type Button}} depuis
+                 CE MEME niveau (Application.Resources, la ou ui:ControlsDictionary est
+                 fusionne) est auto-referent - WPF ne retrouve pas le style WPF-UI et retombe
+                 sur le Button par defaut (texte noir, invisible en sombre). Le style Button
+                 (avec BasedOn) doit rester declare dans chaque fenetre/UserControl : ca
+                 fonctionne car {StaticResource {x:Type Button}} y est resolu depuis un niveau
+                 EN DESSOUS d'Application.Resources, sans ambiguite. Voir MainWindow.xaml,
+                 SchiloIaView.xaml, PresetManagerView.xaml. -->
         </ResourceDictionary>
     </Application.Resources>
 </Application>
