@@ -384,8 +384,13 @@ public class DocxParser
         return match.Success ? match.Groups[1].Value[0] - '1' : null;
     }
 
+    // Demande d'Eric : tout tiret long ou moyen saisi dans Word (souvent pose par la
+    // correction automatique) sort en tiret court "-", dans les titres comme dans le contenu.
+    private static string NormalizeDashes(string text)
+        => text.Replace('‒', '-').Replace('–', '-').Replace('—', '-').Replace('―', '-');
+
     private static string GetParagraphText(Paragraph para)
-        => string.Concat(para.Descendants<Text>().Select(t => t.Text));
+        => NormalizeDashes(string.Concat(para.Descendants<Text>().Select(t => t.Text)));
 
     private static bool IsWholeParagraphBold(Paragraph para)
     {
@@ -409,7 +414,7 @@ public class DocxParser
     }
 
     private static string GetRunText(Run run)
-        => string.Concat(run.Descendants<Text>().Select(t => t.Text));
+        => NormalizeDashes(string.Concat(run.Descendants<Text>().Select(t => t.Text)));
 
     private static string RenderRunsInline(Paragraph para)
     {
