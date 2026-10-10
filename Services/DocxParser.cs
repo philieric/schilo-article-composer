@@ -10,6 +10,11 @@ namespace SchiloArticleComposer.Services;
 public class DocxParseResult
 {
     public List<DocSection> Sections { get; } = new();
+
+    // Etudes detectees (une par Titre 1 "version"). Vide pour un document sans
+    // delimiteur d'etude, ou les Titre 1 sont directement les sections.
+    public List<DocArticle> Articles { get; } = new();
+
     public int ParagraphsBeforeFirstHeading { get; set; }
 }
 
@@ -33,38 +38,183 @@ public class DocxParser
         LoadStyles(mainPart.StyleDefinitionsPart);
 
         var body = mainPart.Document?.Body ?? throw new InvalidOperationException("Document Word vide.");
+        var paragraphs = body.Elements<Paragraph>().ToList();
 
-        var result = new DocxParseResult();
-        DocSection? current = null;
-        var contentBuilder = new StringBuilder();
-        ListRun? openList = null;
-        var bibleReferences = new List<string>();
+        return HasStudyDelimiter(paragraphs) ? ParseStudies(paragraphs) : ParseFlatSections(paragraphs);
+    }
 
-        void FlushList()
+    // Un document "a etudes" se reconnait a un Titre 1 suivi directement d'un autre titre
+    // (Titre 1 "Version academique" puis titre de l'article), sans texte entre les deux.
+    // Les anciens documents (Titre 1 = section, suivie de son contenu) n'ont pas cette
+    // forme et gardent le traitement d'origine.
+    private bool HasStudyDelimiter(List<Paragraph> paragraphs)
+    {
+        var previousIsHeading1 = false;
+        foreach (var para in paragraphs)
         {
-            if (openList != null && contentBuilder != null)
-            {
-                contentBuilder.Append(openList.Render());
-                openList = null;
-            }
+            if (string.IsNullOrWhiteSpace(GetParagraphText(para))) continue;
+
+            var level = GetHeadingLevel(para);
+            if (previousIsHeading1 && level is 0 or 1) return true;
+            previousIsHeading1 = level == 0;
         }
+        return false;
+    }
+
+    // Structure attendue (convention d'Eric, documents DANxxx) :
+    //   1re ligne         -> code de reference (ex: "DAN000"), pour le nom du fichier
+    //   Titre 1           -> delimiteur d'etude ("Version academique") = un fichier XML
+    //   titre suivant     -> titre de l'article
+    //   Titre 2           -> titre de section
+    //   texte             -> contenu de la section
+    //   Titre 3 et plus   -> <h3>/<h4> dans le contenu
+    private DocxParseResult ParseStudies(List<Paragraph> paragraphs)
+    {
+        var result = new DocxParseResult();
+        var writer = new ContentWriter();
+        var bibleReferences = new List<string>();
+        string? code = null;
+        DocArticle? article = null;
+        DocSection? current = null;
 
         void FlushSection()
         {
-            if (current != null)
+            var html = writer.Flush();
+            if (current != null && article != null)
             {
-                FlushList();
-                current.ContentHtml = contentBuilder.ToString().Trim();
+                current.ContentHtml = html;
+                article.Sections.Add(current);
                 result.Sections.Add(current);
             }
-            contentBuilder.Clear();
+            current = null;
         }
 
-        foreach (var para in body.Elements<Paragraph>())
+        for (var i = 0; i < paragraphs.Count; i++)
+        {
+            var para = paragraphs[i];
+            var text = GetParagraphText(para);
+            if (string.IsNullOrWhiteSpace(text)) continue;
+
+            var level = GetHeadingLevel(para);
+
+            if (level == 0)
+            {
+                if (article != null && article.Title.Length == 0 && article.Sections.Count == 0 && current == null)
+                {
+                    article.Title = text.Trim();
+                }
+                else
+                {
+                    FlushSection();
+                    article = new DocArticle { Code = code ?? string.Empty, Version = text.Trim() };
+                    result.Articles.Add(article);
+                }
+                continue;
+            }
+
+            if (article == null)
+            {
+                if (code == null)
+                {
+                    code = ExtractStudyCode(text);
+                    continue;
+                }
+
+                result.ParagraphsBeforeFirstHeading++;
+                var reference = ExtractBibleReference(text);
+                if (reference != null) bibleReferences.Add(reference);
+                continue;
+            }
+
+            if (level == 1)
+            {
+                // Titre de l'article saisi en Titre 2 au lieu de Titre 1 : c'est le cas
+                // quand il suit directement le delimiteur et precede un autre Titre 2.
+                if (article.Title.Length == 0 && article.Sections.Count == 0 && current == null
+                    && NextTextIsSectionHeading(paragraphs, i))
+                {
+                    article.Title = text.Trim();
+                    continue;
+                }
+
+                FlushSection();
+                current = new DocSection { Title = text.Trim(), Article = article };
+                continue;
+            }
+
+            if (current == null)
+            {
+                if (article.Title.Length == 0)
+                {
+                    result.ParagraphsBeforeFirstHeading++;
+                    continue;
+                }
+
+                // Chapeau place entre le titre de l'article et la 1re section (ex: DAN001,
+                // version pedagogique) : conserve dans une section portant le titre de l'article.
+                current = new DocSection { Title = article.Title, Article = article };
+            }
+
+            if (level.HasValue)
+            {
+                var tag = level.Value == 2 ? "h3" : "h4";
+                writer.AppendBlock($"<{tag}>{EscapeHtml(text.Trim())}</{tag}>\n");
+                continue;
+            }
+
+            AppendBodyParagraph(writer, para, text, boldParagraphIsHeading: false);
+        }
+
+        FlushSection();
+
+        if (bibleReferences.Count > 0 && result.Articles.Count > 0)
+        {
+            var first = result.Articles[0];
+            var bibleSection = BuildBibleReferencesSection(bibleReferences);
+            bibleSection.Article = first;
+            first.Sections.Insert(0, bibleSection);
+            result.Sections.Insert(0, bibleSection);
+        }
+
+        return result;
+    }
+
+    private bool NextTextIsSectionHeading(List<Paragraph> paragraphs, int index)
+    {
+        for (var i = index + 1; i < paragraphs.Count; i++)
+        {
+            if (string.IsNullOrWhiteSpace(GetParagraphText(paragraphs[i]))) continue;
+            return GetHeadingLevel(paragraphs[i]) == 1;
+        }
+        return false;
+    }
+
+    // "DAN000 Introduction" -> "DAN000" : le code est le premier mot de la premiere ligne.
+    private static string ExtractStudyCode(string text)
+        => text.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
+
+    private DocxParseResult ParseFlatSections(List<Paragraph> paragraphs)
+    {
+        var result = new DocxParseResult();
+        var writer = new ContentWriter();
+        DocSection? current = null;
+        var bibleReferences = new List<string>();
+
+        void FlushSection()
+        {
+            var html = writer.Flush();
+            if (current != null)
+            {
+                current.ContentHtml = html;
+                result.Sections.Add(current);
+            }
+        }
+
+        foreach (var para in paragraphs)
         {
             var text = GetParagraphText(para);
 
-            if (IsHeadingLevel1(para))
+            if (GetHeadingLevel(para) == 0)
             {
                 FlushSection();
                 current = new DocSection { Title = text.Trim() };
@@ -94,52 +244,55 @@ public class DocxParser
                 continue; // paragraphe vide = simple espacement dans Word
             }
 
-            var listInfo = GetListInfo(para);
-            if (listInfo != null)
-            {
-                if (openList == null || openList.Ordered != listInfo.Value.Ordered)
-                {
-                    FlushList();
-                    openList = new ListRun(listInfo.Value.Ordered);
-                }
-                openList.Items.Add(RenderRunsInline(para));
-                continue;
-            }
-
-            FlushList();
-
-            if (IsWholeParagraphBold(para))
-            {
-                contentBuilder.Append("<h3>").Append(EscapeHtml(text.Trim())).Append("</h3>\n");
-            }
-            else
-            {
-                contentBuilder.Append("<p>").Append(RenderRunsInline(para)).Append("</p>\n");
-            }
+            AppendBodyParagraph(writer, para, text, boldParagraphIsHeading: true);
         }
 
         FlushSection();
 
         if (bibleReferences.Count > 0)
         {
-            var refsHtml = new StringBuilder();
-            foreach (var reference in bibleReferences)
-            {
-                var tag = GetBookTag(reference);
-                refsHtml.Append('<').Append(tag).Append('>')
-                    .Append(EscapeHtml(reference))
-                    .Append("</").Append(tag).Append(">\n");
-            }
-
-            result.Sections.Insert(0, new DocSection
-            {
-                Title = "Textes bibliques",
-                ContentHtml = refsHtml.ToString().TrimEnd(),
-                Type = "textes-bibliques",
-            });
+            result.Sections.Insert(0, BuildBibleReferencesSection(bibleReferences));
         }
 
         return result;
+    }
+
+    private void AppendBodyParagraph(ContentWriter writer, Paragraph para, string text, bool boldParagraphIsHeading)
+    {
+        var listInfo = GetListInfo(para);
+        if (listInfo != null)
+        {
+            writer.AppendListItem(listInfo.Value.Ordered, RenderRunsInline(para));
+            return;
+        }
+
+        if (boldParagraphIsHeading && IsWholeParagraphBold(para))
+        {
+            writer.AppendBlock($"<h3>{EscapeHtml(text.Trim())}</h3>\n");
+        }
+        else
+        {
+            writer.AppendBlock($"<p>{RenderRunsInline(para)}</p>\n");
+        }
+    }
+
+    private static DocSection BuildBibleReferencesSection(List<string> bibleReferences)
+    {
+        var refsHtml = new StringBuilder();
+        foreach (var reference in bibleReferences)
+        {
+            var tag = GetBookTag(reference);
+            refsHtml.Append('<').Append(tag).Append('>')
+                .Append(EscapeHtml(reference))
+                .Append("</").Append(tag).Append(">\n");
+        }
+
+        return new DocSection
+        {
+            Title = "Textes bibliques",
+            ContentHtml = refsHtml.ToString().TrimEnd(),
+            Type = "textes-bibliques",
+        };
     }
 
     // Detecte une ligne "Livre chapitre.versets" isolee (ex: "Matthieu 13.1-23 (S21)",
@@ -211,22 +364,24 @@ public class DocxParser
         return (s.Name, null);
     }
 
-    private bool IsHeadingLevel1(Paragraph para)
+    // Niveau de plan 0-based du titre (0 = Titre 1, 1 = Titre 2...), ou null si le
+    // paragraphe n'est pas un titre.
+    private int? GetHeadingLevel(Paragraph para)
     {
         var styleId = para.ParagraphProperties?.ParagraphStyleId?.Val?.Value;
-        if (styleId == null) return false;
+        if (styleId == null) return null;
 
         var (name, outlineLevel) = ResolveStyle(styleId);
 
         if (outlineLevel.HasValue)
         {
-            return outlineLevel.Value == 0;
+            return outlineLevel.Value < 9 ? outlineLevel.Value : null; // 9 = "corps de texte" dans Word
         }
 
         // Repli si le style ne porte pas de niveau de plan explicite (styles Word
         // renommes/personnalises comme "Titre1" sans OutlineLevel dans le XML).
-        var normalized = name.Replace(" ", "").ToLowerInvariant();
-        return normalized is "titre1" or "heading1";
+        var match = Regex.Match(name.Replace(" ", "").ToLowerInvariant(), "^(?:titre|heading)([1-9])$");
+        return match.Success ? match.Groups[1].Value[0] - '1' : null;
     }
 
     private static string GetParagraphText(Paragraph para)
@@ -289,6 +444,46 @@ public class DocxParser
 
     private static string EscapeHtml(string text)
         => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+
+    // Accumule le HTML d'une section, en regroupant les elements de liste consecutifs.
+    private class ContentWriter
+    {
+        private readonly StringBuilder _html = new();
+        private ListRun? _openList;
+
+        public void AppendBlock(string html)
+        {
+            CloseList();
+            _html.Append(html);
+        }
+
+        public void AppendListItem(bool ordered, string itemHtml)
+        {
+            if (_openList == null || _openList.Ordered != ordered)
+            {
+                CloseList();
+                _openList = new ListRun(ordered);
+            }
+            _openList.Items.Add(itemHtml);
+        }
+
+        public string Flush()
+        {
+            CloseList();
+            var html = _html.ToString().Trim();
+            _html.Clear();
+            return html;
+        }
+
+        private void CloseList()
+        {
+            if (_openList != null)
+            {
+                _html.Append(_openList.Render());
+                _openList = null;
+            }
+        }
+    }
 
     private class ListRun
     {
