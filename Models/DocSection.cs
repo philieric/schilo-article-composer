@@ -11,6 +11,9 @@ public class DocSection : INotifyPropertyChanged
 
     public string Type { get; set; } = "paragraphe";
 
+    // Etude a laquelle appartient la section (null pour un document sans delimiteur d'etude).
+    public DocArticle? Article { get; set; }
+
     public string Title
     {
         get => _title;

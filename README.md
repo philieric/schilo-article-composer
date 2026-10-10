@@ -17,6 +17,11 @@ en fichier XML de sections, destine a l'import dans **Schilo Builder**
 - Chaque section peut etre relue/editee (titre + HTML) et reordonnee avant export.
 - Export XML (`<schilo_sections><section type="paragraphe">...`), uniquement
   les sections cochees.
+- Documents contenant plusieurs etudes (un Titre 1 « Version academique »,
+  « Version pedagogique »... suivi du titre de l'article) : un fichier XML par
+  etude, les Titre 2 sont les sections et les Titre 3 des `<h3>`. Le fichier
+  est nomme d'apres le code en premiere ligne, la version et le titre, ex.
+  `DAN000_version_academique_introduction_generale_au_livre_de_daniel.xml`.
 
 ## Compiler
 
