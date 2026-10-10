@@ -34,11 +34,8 @@ garde, photo, bloc "Textes bibliques") — hors périmètre, décision d'Eric.
 
 Convention d'Eric pour les documents contenant plusieurs versions d'un meme
 article (ex. `DAN000 OK Introduction  travail.docx`, ou il a surligne chaque
-role en couleur). **Le surlignage, quand il existe, prime sur le style** (corrige
-le 2026-10-10 : Eric surligne en bleu des Titre 3 qui sont des titres de
-section, pas des h3) : rose = delimiteur, vert = titre de l'article, bleu =
-titre de section, jaune = contenu (`DocxParser.GetMarkedRole`). Sans
-surlignage (DAN001, DAN004...), ce sont les styles Word qui decident :
+role en couleur pour l'expliquer — **les couleurs ne sont PAS lues**, les
+vrais documents n'en ont pas, seuls les styles Word comptent) :
 
 | Dans Word | Role |
 |---|---|
