@@ -59,6 +59,10 @@ d'un autre titre, sans texte entre les deux. Sinon c'est l'ancien format
 - chapeau entre le titre de l'article et la 1re section : conserve dans une
   section portant le titre de l'article.
 
+**Tirets** (demande d'Eric, 2026-10-10) : tout tiret long ou moyen de Word
+(`—`, `–`) sort en tiret court `-`, dans les titres comme dans le contenu,
+pour les deux formats de document (`DocxParser.NormalizeDashes`).
+
 Le format XML lui-meme est inchange (compatible avec l'import du theme).
 Export : une etude -> boite "Enregistrer sous" avec le nom propose ; plusieurs
 etudes -> choix d'un dossier, un fichier par etude. Dans la liste, les
