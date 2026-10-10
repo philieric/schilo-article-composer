@@ -54,6 +54,8 @@ public class DocxParser
         {
             if (string.IsNullOrWhiteSpace(GetParagraphText(para))) continue;
 
+            if (GetMarkedRole(para) == MarkedRole.Delimiter) return true;
+
             var level = GetHeadingLevel(para);
             if (previousIsHeading1 && level is 0 or 1) return true;
             previousIsHeading1 = level == 0;
@@ -61,13 +63,42 @@ public class DocxParser
         return false;
     }
 
-    // Structure attendue (convention d'Eric, documents DANxxx) :
-    //   1re ligne         -> code de reference (ex: "DAN000"), pour le nom du fichier
-    //   Titre 1           -> delimiteur d'etude ("Version academique") = un fichier XML
-    //   titre suivant     -> titre de l'article
-    //   Titre 2           -> titre de section
-    //   texte             -> contenu de la section
-    //   Titre 3 et plus   -> <h3>/<h4> dans le contenu
+    private enum MarkedRole { None, Delimiter, ArticleTitle, SectionTitle, Content }
+
+    private enum ParagraphKind { Delimiter, ArticleTitle, SectionTitle, SubHeading, Text }
+
+    // Role indique par le surlignage Word du paragraphe (convention d'Eric) : rose =
+    // delimiteur d'etude, vert = titre de l'article, bleu = titre de section, jaune =
+    // contenu. Le surlignage, quand il est present, prime sur le style : un Titre 3
+    // surligne en bleu est un titre de section, pas un <h3>. Le gris (ligne du code de
+    // reference) et les paragraphes non surlignes sont classes d'apres leur style.
+    private static MarkedRole GetMarkedRole(Paragraph para)
+    {
+        var run = para.Descendants<Run>().FirstOrDefault(r => !string.IsNullOrWhiteSpace(GetRunText(r)));
+        var color = run?.RunProperties?.Highlight?.Val?.Value;
+        if (color == null) return MarkedRole.None;
+
+        if (color == HighlightColorValues.Magenta) return MarkedRole.Delimiter;
+        if (color == HighlightColorValues.Green) return MarkedRole.ArticleTitle;
+        if (color == HighlightColorValues.Cyan) return MarkedRole.SectionTitle;
+        if (color == HighlightColorValues.Yellow) return MarkedRole.Content;
+        return MarkedRole.None;
+    }
+
+    private bool IsSectionHeading(Paragraph para)
+    {
+        var role = GetMarkedRole(para);
+        return role == MarkedRole.SectionTitle || (role == MarkedRole.None && GetHeadingLevel(para) == 1);
+    }
+
+    // Structure attendue (convention d'Eric, documents DANxxx), d'apres le surlignage
+    // s'il y en a un, sinon d'apres le style :
+    //   1re ligne               -> code de reference (ex: "DAN000"), pour le nom du fichier
+    //   rose   / Titre 1        -> delimiteur d'etude ("Version academique") = un fichier XML
+    //   vert   / titre suivant  -> titre de l'article
+    //   bleu   / Titre 2        -> titre de section
+    //   jaune  / texte          -> contenu de la section
+    //   Titre 3 et plus (non surligne en bleu) -> <h3>/<h4> dans le contenu
     private DocxParseResult ParseStudies(List<Paragraph> paragraphs)
     {
         var result = new DocxParseResult();
@@ -96,19 +127,31 @@ public class DocxParser
             if (string.IsNullOrWhiteSpace(text)) continue;
 
             var level = GetHeadingLevel(para);
+            var awaitingTitle = article != null && article.Title.Length == 0 && article.Sections.Count == 0 && current == null;
 
-            if (level == 0)
+            var kind = GetMarkedRole(para) switch
             {
-                if (article != null && article.Title.Length == 0 && article.Sections.Count == 0 && current == null)
+                MarkedRole.Delimiter => ParagraphKind.Delimiter,
+                // Un 2e titre d'article dans la meme etude ne peut etre qu'une section.
+                MarkedRole.ArticleTitle => awaitingTitle ? ParagraphKind.ArticleTitle : ParagraphKind.SectionTitle,
+                MarkedRole.SectionTitle => ParagraphKind.SectionTitle,
+                MarkedRole.Content => level.HasValue ? ParagraphKind.SubHeading : ParagraphKind.Text,
+                _ => level switch
                 {
-                    article.Title = text.Trim();
-                }
-                else
-                {
-                    FlushSection();
-                    article = new DocArticle { Code = code ?? string.Empty, Version = text.Trim() };
-                    result.Articles.Add(article);
-                }
+                    0 => awaitingTitle ? ParagraphKind.ArticleTitle : ParagraphKind.Delimiter,
+                    // Titre de l'article saisi en Titre 2 au lieu de Titre 1 : c'est le cas
+                    // quand il suit directement le delimiteur et precede un titre de section.
+                    1 => awaitingTitle && NextTextIsSectionHeading(paragraphs, i) ? ParagraphKind.ArticleTitle : ParagraphKind.SectionTitle,
+                    null => ParagraphKind.Text,
+                    _ => ParagraphKind.SubHeading,
+                },
+            };
+
+            if (kind == ParagraphKind.Delimiter)
+            {
+                FlushSection();
+                article = new DocArticle { Code = code ?? string.Empty, Version = text.Trim() };
+                result.Articles.Add(article);
                 continue;
             }
 
@@ -126,17 +169,14 @@ public class DocxParser
                 continue;
             }
 
-            if (level == 1)
+            if (kind == ParagraphKind.ArticleTitle)
             {
-                // Titre de l'article saisi en Titre 2 au lieu de Titre 1 : c'est le cas
-                // quand il suit directement le delimiteur et precede un autre Titre 2.
-                if (article.Title.Length == 0 && article.Sections.Count == 0 && current == null
-                    && NextTextIsSectionHeading(paragraphs, i))
-                {
-                    article.Title = text.Trim();
-                    continue;
-                }
+                article.Title = text.Trim();
+                continue;
+            }
 
+            if (kind == ParagraphKind.SectionTitle)
+            {
                 FlushSection();
                 current = new DocSection { Title = text.Trim(), Article = article };
                 continue;
@@ -155,9 +195,9 @@ public class DocxParser
                 current = new DocSection { Title = article.Title, Article = article };
             }
 
-            if (level.HasValue)
+            if (kind == ParagraphKind.SubHeading)
             {
-                var tag = level.Value == 2 ? "h3" : "h4";
+                var tag = level is null or <= 2 ? "h3" : "h4";
                 writer.AppendBlock($"<{tag}>{EscapeHtml(text.Trim())}</{tag}>\n");
                 continue;
             }
@@ -184,7 +224,7 @@ public class DocxParser
         for (var i = index + 1; i < paragraphs.Count; i++)
         {
             if (string.IsNullOrWhiteSpace(GetParagraphText(paragraphs[i]))) continue;
-            return GetHeadingLevel(paragraphs[i]) == 1;
+            return IsSectionHeading(paragraphs[i]);
         }
         return false;
     }
