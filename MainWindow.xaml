@@ -32,7 +32,7 @@
             <Image Source="Assets/logo-256.png" Width="40" Height="40" VerticalAlignment="Center" />
             <StackPanel Orientation="Vertical" Margin="12,0,0,0" VerticalAlignment="Center">
                 <TextBlock Text="Schilo Article Composer" FontSize="16" FontWeight="Bold" />
-                <TextBlock Text="Convertit une etude biblique Word (titres « Titre 1 ») en sections XML pretes pour Schilo Builder."
+                <TextBlock Text="Convertit une etude biblique Word (version, titre, sections) en sections XML pretes pour Schilo Builder."
                            Foreground="#888" FontSize="12" />
             </StackPanel>
         </StackPanel>
@@ -78,7 +78,7 @@
 
                         <!-- Liste des sections H2 detectees -->
                         <DockPanel Grid.Column="0">
-                            <TextBlock DockPanel.Dock="Top" Text="Sections detectees (titres H2)" FontWeight="Bold" Margin="0,0,0,6" />
+                            <TextBlock DockPanel.Dock="Top" Text="Sections detectees" FontWeight="Bold" Margin="0,0,0,6" />
 
                             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
                                 <Button x:Name="MoveUpButton" Content="↑ Monter" Click="MoveUpButton_Click" />
@@ -91,6 +91,19 @@
                                         <Setter Property="Padding" Value="6,5" />
                                     </Style>
                                 </ListBox.ItemContainerStyle>
+                                <ListBox.GroupStyle>
+                                    <GroupStyle>
+                                        <GroupStyle.HeaderTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Margin="4,10,4,4">
+                                                    <TextBlock Text="{Binding Name.Label}" FontWeight="Bold" TextWrapping="Wrap" MaxWidth="290" HorizontalAlignment="Left" />
+                                                    <TextBlock Text="{Binding Name.FileName}" FontSize="11" Foreground="#888" TextWrapping="Wrap" MaxWidth="290" HorizontalAlignment="Left"
+                                                               ToolTip="Nom du fichier XML exporte pour cette etude" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </GroupStyle.HeaderTemplate>
+                                    </GroupStyle>
+                                </ListBox.GroupStyle>
                                 <ListBox.ItemTemplate>
                                     <DataTemplate>
                                         <StackPanel Orientation="Horizontal">

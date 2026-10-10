@@ -30,6 +30,40 @@ Eric rédige de longs articles bibliques dans Word (ex. `PAR001 OK Le semeur.doc
 **Le contenu avant le premier titre H2 est volontairement ignoré** (page de
 garde, photo, bloc "Textes bibliques") — hors périmètre, décision d'Eric.
 
+### Documents "a etudes" (serie DANxxx, depuis le 2026-10-10)
+
+Convention d'Eric pour les documents contenant plusieurs versions d'un meme
+article (ex. `DAN000 OK Introduction  travail.docx`, ou il a surligne chaque
+role en couleur pour l'expliquer — **les couleurs ne sont PAS lues**, les
+vrais documents n'en ont pas, seuls les styles Word comptent) :
+
+| Dans Word | Role |
+|---|---|
+| 1re ligne (`DAN000 Introduction`) | code de reference = 1er mot, pour le nom du fichier |
+| Titre 1 (`Version academique`) | delimiteur d'etude : **un fichier XML par delimiteur** |
+| titre qui suit le delimiteur | titre de l'article (nom du fichier seulement, pas ecrit dans le XML) |
+| Titre 2 | titre de section |
+| texte | contenu de la section (`<p>`, un paragraphe tout en gras reste un `<p><strong>`) |
+| Titre 3 / Titre 4+ | `<h3>` / `<h4>` dans le contenu |
+
+Nom de fichier (`Services/XmlFileNamer.cs`) : code + version + titre, sans
+accent, tout ce qui n'est pas lettre/chiffre devient `_` — ex.
+`DAN000_version_academique_introduction_generale_au_livre_de_daniel.xml`.
+
+Detection (`DocxParser.HasStudyDelimiter`) : un Titre 1 suivi directement
+d'un autre titre, sans texte entre les deux. Sinon c'est l'ancien format
+(Titre 1 = section, gras isole = `<h3>`), traite comme avant
+(`ParseFlatSections`). Cas toleres, vus dans les vrais documents :
+- titre de l'article saisi en Titre 2 (accepte s'il est suivi d'un autre Titre 2) ;
+- delimiteur sans titre d'article (`Annexes` -> `DAN001_annexes.xml`) ;
+- chapeau entre le titre de l'article et la 1re section : conserve dans une
+  section portant le titre de l'article.
+
+Le format XML lui-meme est inchange (compatible avec l'import du theme).
+Export : une etude -> boite "Enregistrer sous" avec le nom propose ; plusieurs
+etudes -> choix d'un dossier, un fichier par etude. Dans la liste, les
+sections sont groupees par etude et ne peuvent pas changer d'etude.
+
 **Cote import : deja construit dans `schilo-theme`.** Le bouton "Importer XML"
 existe dans l'editeur Schilo Builder (remplace les sections `paragraphe`
 existantes en laissant les autres types — `liens-articles`, `conclusion`,

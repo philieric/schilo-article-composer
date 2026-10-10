@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Media;
 using ICSharpCode.AvalonEdit.Highlighting;
 using Microsoft.Win32;
@@ -18,6 +19,7 @@ namespace SchiloArticleComposer;
 public partial class MainWindow : FluentWindow
 {
     private readonly ObservableCollection<DocSection> _sections = new();
+    private readonly List<DocArticle> _articles = new();
     private readonly DocxParser _parser = new();
     private readonly XmlExporter _exporter = new();
     private readonly UpdateChecker _updateChecker = new();
@@ -40,6 +42,14 @@ public partial class MainWindow : FluentWindow
         SchiloIaPanel.ManagePresetsRequested += (_, _) => ShowPresetManager();
 
         _ = CheckForUpdatesOnStartupAsync();
+
+        // Ouverture directe d'un document passe en argument (glisser-deposer d'un .docx
+        // sur l'exe, "Ouvrir avec...").
+        var args = Environment.GetCommandLineArgs();
+        if (args.Length > 1 && args[1].EndsWith(".docx", StringComparison.OrdinalIgnoreCase) && File.Exists(args[1]))
+        {
+            Loaded += (_, _) => LoadDocument(args[1]);
+        }
     }
 
     // L'onglet actif etait auparavant IsEnabled=false, ce qui le grise (visuellement
@@ -268,33 +278,54 @@ public partial class MainWindow : FluentWindow
 
         if (dialog.ShowDialog() != true) return;
 
+        LoadDocument(dialog.FileName);
+    }
+
+    private void LoadDocument(string path)
+    {
         try
         {
-            var (result, fromLiveWord) = ParseWithWordLockFallback(dialog.FileName);
+            var (result, fromLiveWord) = ParseWithWordLockFallback(path);
 
             _sections.Clear();
+            _articles.Clear();
+            _articles.AddRange(result.Articles);
+
+            // Un en-tete de groupe par etude (un fichier XML chacune) ; liste a plat
+            // pour un document sans delimiteur d'etude.
+            var view = CollectionViewSource.GetDefaultView(_sections);
+            view.GroupDescriptions.Clear();
+            if (_articles.Count > 0)
+            {
+                view.GroupDescriptions.Add(new PropertyGroupDescription(nameof(DocSection.Article)));
+            }
+
             foreach (var section in result.Sections)
             {
                 _sections.Add(section);
             }
 
-            _currentDocxPath = dialog.FileName;
-            FileNameText.Text = System.IO.Path.GetFileName(dialog.FileName);
+            _currentDocxPath = path;
+            FileNameText.Text = System.IO.Path.GetFileName(path);
             ExportButton.IsEnabled = _sections.Count > 0;
 
             var ignored = result.ParagraphsBeforeFirstHeading > 0
-                ? $" ({result.ParagraphsBeforeFirstHeading} paragraphe(s) avant le premier titre H2 ignore(s) — page de garde, texte des versets, etc.)"
+                ? $" ({result.ParagraphsBeforeFirstHeading} paragraphe(s) hors section ignore(s) — page de garde, texte des versets, etc.)"
                 : string.Empty;
             var liveWordNote = fromLiveWord
                 ? " (lu depuis la version actuellement ouverte dans Word, y compris modifications non enregistrees)"
                 : string.Empty;
-            StatusText.Text = $"{_sections.Count} section(s) detectee(s).{ignored}{liveWordNote}";
+            var studies = _articles.Count > 0
+                ? $"{_articles.Count} etude(s) = {_articles.Count} fichier(s) XML, "
+                : string.Empty;
+            StatusText.Text = $"{studies}{_sections.Count} section(s) detectee(s).{ignored}{liveWordNote}";
 
             if (_sections.Count == 0)
             {
                 MessageBox.Show(
-                    "Aucun titre de style « Titre 1 » / « Heading 1 » (niveau de plan 1) n'a ete trouve dans ce document.\n" +
-                    "Verifiez que les titres de section utilisent bien ce style dans Word.",
+                    "Aucune section n'a ete trouvee dans ce document.\n" +
+                    "Verifiez les styles dans Word : « Titre 1 » pour la version et le titre de l'article, " +
+                    "« Titre 2 » pour les sections (ou « Titre 1 » pour les sections d'un document sans version).",
                     "Aucune section detectee", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
@@ -355,28 +386,93 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        var dialog = new SaveFileDialog
-        {
-            Filter = "Fichier XML (*.xml)|*.xml",
-            FileName = System.IO.Path.GetFileNameWithoutExtension(FileNameText.Text) + "-sections.xml",
-            Title = "Enregistrer l'export XML",
-        };
+        // Une etude = un fichier XML. L'ordre des sections suit celui de la liste (reordonnable).
+        var studies = _articles
+            .Select(a => (Article: a, Sections: _sections.Where(s => ReferenceEquals(s.Article, a)).ToList()))
+            .Where(x => x.Sections.Any(s => s.Include))
+            .ToList();
 
-        if (dialog.ShowDialog() != true) return;
+        var sourceDir = _currentDocxPath != null ? System.IO.Path.GetDirectoryName(_currentDocxPath) : null;
+        var exports = new List<(string Path, List<DocSection> Sections)>();
+
+        if (studies.Count > 1)
+        {
+            var folderDialog = new OpenFolderDialog
+            {
+                Title = $"Choisir le dossier des {studies.Count} fichiers XML",
+                InitialDirectory = sourceDir ?? string.Empty,
+            };
+
+            if (folderDialog.ShowDialog() != true) return;
+
+            foreach (var (article, sections) in studies)
+            {
+                exports.Add((System.IO.Path.Combine(folderDialog.FolderName, article.FileName), sections));
+            }
+
+            var duplicate = exports.GroupBy(x => x.Path, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+            if (duplicate != null)
+            {
+                MessageBox.Show(
+                    $"Plusieurs etudes donnent le meme nom de fichier :\n{System.IO.Path.GetFileName(duplicate.Key)}\n\n" +
+                    "Verifiez dans Word que chaque etude a une version ou un titre different.",
+                    "Noms de fichier identiques", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var existing = exports.Where(x => File.Exists(x.Path)).Select(x => System.IO.Path.GetFileName(x.Path)).ToList();
+            if (existing.Count > 0)
+            {
+                var overwrite = MessageBox.Show(
+                    "Ces fichiers existent deja et seront remplaces :\n\n" + string.Join("\n", existing) + "\n\nContinuer ?",
+                    "Remplacer les fichiers", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+                if (overwrite != MessageBoxResult.Yes) return;
+            }
+        }
+        else
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "Fichier XML (*.xml)|*.xml",
+                FileName = studies.Count == 1
+                    ? studies[0].Article.FileName
+                    : System.IO.Path.GetFileNameWithoutExtension(FileNameText.Text) + "-sections.xml",
+                InitialDirectory = sourceDir ?? string.Empty,
+                Title = "Enregistrer l'export XML",
+            };
+
+            if (dialog.ShowDialog() != true) return;
+
+            exports.Add((dialog.FileName, studies.Count == 1 ? studies[0].Sections : _sections.ToList()));
+        }
 
         try
         {
-            _exporter.Export(_sections, dialog.FileName);
-            StatusText.Text = $"Export termine : {included.Count} section(s) ecrite(s) dans {dialog.FileName}";
-            MessageBox.Show("Export XML termine.", "Termine", MessageBoxButton.OK, MessageBoxImage.Information);
-
-            ExportHistoryStore.Add(new ExportHistoryEntry
+            foreach (var (path, sections) in exports)
             {
-                Date = DateTime.Now,
-                SourceDocxPath = _currentDocxPath ?? string.Empty,
-                ExportedXmlPath = dialog.FileName,
-                SectionCount = included.Count,
-            });
+                _exporter.Export(sections, path);
+
+                ExportHistoryStore.Add(new ExportHistoryEntry
+                {
+                    Date = DateTime.Now,
+                    SourceDocxPath = _currentDocxPath ?? string.Empty,
+                    ExportedXmlPath = path,
+                    SectionCount = sections.Count(s => s.Include),
+                });
+            }
+
+            if (exports.Count == 1)
+            {
+                StatusText.Text = $"Export termine : {included.Count} section(s) ecrite(s) dans {exports[0].Path}";
+                MessageBox.Show("Export XML termine.", "Termine", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                StatusText.Text = $"Export termine : {exports.Count} fichiers XML ({included.Count} sections) dans {System.IO.Path.GetDirectoryName(exports[0].Path)}";
+                MessageBox.Show(
+                    $"{exports.Count} fichiers XML exportes :\n\n" + string.Join("\n", exports.Select(x => System.IO.Path.GetFileName(x.Path))),
+                    "Termine", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
         }
         catch (Exception ex)
         {
@@ -429,18 +525,26 @@ public partial class MainWindow : FluentWindow
 
     private void MoveUpButton_Click(object sender, RoutedEventArgs e)
     {
-        var index = SectionsList.SelectedIndex;
-        if (index <= 0) return;
-        _sections.Move(index, index - 1);
-        SectionsList.SelectedIndex = index - 1;
+        MoveSelected(-1);
     }
 
     private void MoveDownButton_Click(object sender, RoutedEventArgs e)
     {
-        var index = SectionsList.SelectedIndex;
-        if (index < 0 || index >= _sections.Count - 1) return;
-        _sections.Move(index, index + 1);
-        SectionsList.SelectedIndex = index + 1;
+        MoveSelected(+1);
+    }
+
+    // Une section ne sort pas de son etude : chaque etude a son propre fichier XML.
+    private void MoveSelected(int offset)
+    {
+        if (SectionsList.SelectedItem is not DocSection section) return;
+
+        var index = _sections.IndexOf(section);
+        var target = index + offset;
+        if (index < 0 || target < 0 || target >= _sections.Count) return;
+        if (!ReferenceEquals(_sections[target].Article, section.Article)) return;
+
+        _sections.Move(index, target);
+        SectionsList.SelectedItem = section;
     }
 
     private void AboutButton_Click(object sender, RoutedEventArgs e)
@@ -450,7 +554,7 @@ public partial class MainWindow : FluentWindow
 
         MessageBox.Show(
             $"Schilo Article Composer\nVersion {versionText}\n\n" +
-            "Convertit un document Word (titres « Titre 1 » = sections) en XML de sections\n" +
+            "Convertit un document Word (version, titre d'article, sections) en XML de sections\n" +
             "« paragraphe » pour Schilo Builder (schilo.org).\n\n" +
             "Auteur : Eric Philippot\n" +
             "© 2026 Eric Philippot",
