@@ -1,6 +1,7 @@
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using SchiloArticleComposer.Models;
@@ -16,12 +17,16 @@ public class DocxParseResult
     public List<DocArticle> Articles { get; } = new();
 
     public int ParagraphsBeforeFirstHeading { get; set; }
+
+    // Points a signaler a Eric apres lecture (cellules fusionnees, tableau trop grand...).
+    public List<string> Warnings { get; } = new();
 }
 
 public class DocxParser
 {
     // Association styleId -> (nom lisible, niveau de plan 0-based si defini)
     private readonly Dictionary<string, (string Name, int? OutlineLevel, string? BasedOn)> _styles = new();
+    private MainDocumentPart? _mainPart; // pour resoudre l'adresse des liens hypertexte
 
     public DocxParseResult Parse(string filePath)
     {
@@ -35,23 +40,31 @@ public class DocxParser
         using var doc = WordprocessingDocument.Open(memoryStream, false);
         var mainPart = doc.MainDocumentPart ?? throw new InvalidOperationException("Document Word invalide (pas de contenu principal).");
 
+        _mainPart = mainPart;
         LoadStyles(mainPart.StyleDefinitionsPart);
 
         var body = mainPart.Document?.Body ?? throw new InvalidOperationException("Document Word vide.");
-        var paragraphs = body.Elements<Paragraph>().ToList();
+        // Paragraphes et tableaux, dans l'ordre du document.
+        var blocks = body.ChildElements.Where(e => e is Paragraph or Table).ToList();
 
-        return HasStudyDelimiter(paragraphs) ? ParseStudies(paragraphs) : ParseFlatSections(paragraphs);
+        return HasStudyDelimiter(blocks) ? ParseStudies(blocks) : ParseFlatSections(blocks);
     }
 
     // Un document "a etudes" se reconnait a un Titre 1 suivi directement d'un autre titre
     // (Titre 1 "Version academique" puis titre de l'article), sans texte entre les deux.
     // Les anciens documents (Titre 1 = section, suivie de son contenu) n'ont pas cette
     // forme et gardent le traitement d'origine.
-    private bool HasStudyDelimiter(List<Paragraph> paragraphs)
+    private bool HasStudyDelimiter(List<OpenXmlElement> blocks)
     {
         var previousIsHeading1 = false;
-        foreach (var para in paragraphs)
+        foreach (var block in blocks)
         {
+            if (block is not Paragraph para)
+            {
+                previousIsHeading1 = false;
+                continue;
+            }
+
             if (string.IsNullOrWhiteSpace(GetParagraphText(para))) continue;
 
             var level = GetHeadingLevel(para);
@@ -68,7 +81,7 @@ public class DocxParser
     //   Titre 2           -> titre de section
     //   texte             -> contenu de la section
     //   Titre 3 et plus   -> <h3>/<h4> dans le contenu
-    private DocxParseResult ParseStudies(List<Paragraph> paragraphs)
+    private DocxParseResult ParseStudies(List<OpenXmlElement> blocks)
     {
         var result = new DocxParseResult();
         var writer = new ContentWriter();
@@ -89,9 +102,31 @@ public class DocxParser
             current = null;
         }
 
-        for (var i = 0; i < paragraphs.Count; i++)
+        for (var i = 0; i < blocks.Count; i++)
         {
-            var para = paragraphs[i];
+            if (blocks[i] is Table table)
+            {
+                if (article == null)
+                {
+                    result.ParagraphsBeforeFirstHeading++;
+                    continue;
+                }
+
+                if (current == null)
+                {
+                    if (article.Title.Length == 0)
+                    {
+                        result.ParagraphsBeforeFirstHeading++;
+                        continue;
+                    }
+                    current = new DocSection { Title = article.Title, Article = article };
+                }
+
+                writer.AppendBlock(RenderTable(table, current.Title, result.Warnings));
+                continue;
+            }
+
+            var para = (Paragraph)blocks[i];
             var text = GetParagraphText(para);
             if (string.IsNullOrWhiteSpace(text)) continue;
 
@@ -131,7 +166,7 @@ public class DocxParser
                 // Titre de l'article saisi en Titre 2 au lieu de Titre 1 : c'est le cas
                 // quand il suit directement le delimiteur et precede un autre Titre 2.
                 if (article.Title.Length == 0 && article.Sections.Count == 0 && current == null
-                    && NextTextIsSectionHeading(paragraphs, i))
+                    && NextTextIsSectionHeading(blocks, i))
                 {
                     article.Title = text.Trim();
                     continue;
@@ -179,12 +214,13 @@ public class DocxParser
         return result;
     }
 
-    private bool NextTextIsSectionHeading(List<Paragraph> paragraphs, int index)
+    private bool NextTextIsSectionHeading(List<OpenXmlElement> blocks, int index)
     {
-        for (var i = index + 1; i < paragraphs.Count; i++)
+        for (var i = index + 1; i < blocks.Count; i++)
         {
-            if (string.IsNullOrWhiteSpace(GetParagraphText(paragraphs[i]))) continue;
-            return GetHeadingLevel(paragraphs[i]) == 1;
+            if (blocks[i] is not Paragraph para) return false;
+            if (string.IsNullOrWhiteSpace(GetParagraphText(para))) continue;
+            return GetHeadingLevel(para) == 1;
         }
         return false;
     }
@@ -193,7 +229,7 @@ public class DocxParser
     private static string ExtractStudyCode(string text)
         => text.Trim().Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? string.Empty;
 
-    private DocxParseResult ParseFlatSections(List<Paragraph> paragraphs)
+    private DocxParseResult ParseFlatSections(List<OpenXmlElement> blocks)
     {
         var result = new DocxParseResult();
         var writer = new ContentWriter();
@@ -210,8 +246,21 @@ public class DocxParser
             }
         }
 
-        foreach (var para in paragraphs)
+        foreach (var block in blocks)
         {
+            if (block is Table table)
+            {
+                if (current == null)
+                {
+                    result.ParagraphsBeforeFirstHeading++;
+                    continue;
+                }
+
+                writer.AppendBlock(RenderTable(table, current.Title, result.Warnings));
+                continue;
+            }
+
+            var para = (Paragraph)block;
             var text = GetParagraphText(para);
 
             if (GetHeadingLevel(para) == 0)
@@ -416,22 +465,190 @@ public class DocxParser
     private static string GetRunText(Run run)
         => NormalizeDashes(string.Concat(run.Descendants<Text>().Select(t => t.Text)));
 
-    private static string RenderRunsInline(Paragraph para)
+    // Rend le texte d'un paragraphe avec gras/italique/sauts de ligne et liens. Le texte
+    // des liens hypertexte (w:hyperlink) etait auparavant perdu : ses runs ne sont pas
+    // des enfants directs du paragraphe.
+    private string RenderRunsInline(Paragraph para, bool allowBold = true)
     {
         var sb = new StringBuilder();
-        foreach (var run in para.Elements<Run>())
+        foreach (var child in para.ChildElements)
         {
-            var text = GetRunText(run);
-            var hasBreak = run.Elements<Break>().Any();
-            if (string.IsNullOrEmpty(text) && !hasBreak) continue;
+            if (child is Run run)
+            {
+                sb.Append(RenderRun(run, allowBold));
+            }
+            else if (child is Hyperlink link)
+            {
+                var inner = string.Concat(link.Elements<Run>().Select(r => RenderRun(r, allowBold)));
+                if (inner.Length == 0) continue;
 
-            var escaped = EscapeHtml(text);
-            if (IsRunBold(run)) escaped = $"<strong>{escaped}</strong>";
-            if (IsRunItalic(run)) escaped = $"<em>{escaped}</em>";
-            sb.Append(escaped);
-            if (hasBreak) sb.Append("<br>");
+                var href = GetHyperlinkTarget(link);
+                sb.Append(href != null ? $"<a href=\"{EscapeAttribute(href)}\">{inner}</a>" : inner);
+            }
         }
         return sb.ToString();
+    }
+
+    private static string RenderRun(Run run, bool allowBold)
+    {
+        var text = GetRunText(run);
+        var hasBreak = run.Elements<Break>().Any();
+        if (string.IsNullOrEmpty(text) && !hasBreak) return string.Empty;
+
+        var escaped = EscapeHtml(text);
+        if (allowBold && IsRunBold(run)) escaped = $"<strong>{escaped}</strong>";
+        if (IsRunItalic(run)) escaped = $"<em>{escaped}</em>";
+        return hasBreak ? escaped + "<br>" : escaped;
+    }
+
+    // Lien externe uniquement : un lien vers un signet du document (w:anchor) n'a pas
+    // d'equivalent sur le site, on n'en garde que le texte.
+    private string? GetHyperlinkTarget(Hyperlink link)
+    {
+        var id = link.Id?.Value;
+        if (id == null || _mainPart == null) return null;
+        return _mainPart.HyperlinkRelationships.FirstOrDefault(r => r.Id == id)?.Uri.ToString();
+    }
+
+    // Tableau Word -> <table> selon la regle d'import de Schilo Builder : <caption>
+    // facultatif, en-tete dans <thead><tr><th>, lignes dans <tbody><tr><td>, aucun
+    // attribut de mise en forme (style, width, class). Les cellules fusionnees sont
+    // defusionnees (valeur repetee verticalement, cellules vides horizontalement)
+    // pour que les colonnes ne se decalent pas a l'import.
+    private string RenderTable(Table table, string sectionTitle, List<string> warnings)
+    {
+        var rows = table.Elements<TableRow>().ToList();
+        var headerCount = rows.TakeWhile(IsRepeatedHeaderRow).Count();
+        if (headerCount == 0 && rows.Count > 1 && IsWholeRowBold(rows[0]))
+        {
+            // Pas de "Repeter comme ligne d'en-tete" dans Word, mais 1re ligne toute en
+            // gras : c'est l'en-tete dans tous les tableaux des documents DANxxx.
+            headerCount = 1;
+        }
+
+        var merged = false;
+        var nested = false;
+        var verticalValues = new Dictionary<int, string>();
+        var lines = new List<(bool Header, List<string> Cells)>();
+
+        for (var r = 0; r < rows.Count; r++)
+        {
+            var isHeader = r < headerCount;
+            var cells = new List<string>();
+            foreach (var cell in rows[r].Elements<TableCell>())
+            {
+                var props = cell.TableCellProperties;
+                var span = Math.Max(1, props?.GridSpan?.Val?.Value ?? 1);
+                var vMerge = props?.VerticalMerge;
+                var column = cells.Count;
+
+                string html;
+                if (vMerge != null && vMerge.Val?.Value != MergedCellValues.Restart)
+                {
+                    html = verticalValues.GetValueOrDefault(column, string.Empty);
+                    merged = true;
+                }
+                else
+                {
+                    html = RenderCell(cell, isHeader, ref nested);
+                    if (vMerge != null)
+                    {
+                        verticalValues[column] = html;
+                        merged = true;
+                    }
+                    else
+                    {
+                        verticalValues.Remove(column);
+                    }
+                }
+
+                cells.Add(html);
+                for (var k = 1; k < span; k++)
+                {
+                    cells.Add(string.Empty);
+                    merged = true;
+                }
+            }
+
+            if (cells.All(c => c.Length == 0)) continue; // ligne vide : l'import la retirerait
+            lines.Add((isHeader, cells));
+        }
+
+        var bodyRows = lines.Count(l => !l.Header);
+        var columns = lines.Count == 0 ? 0 : lines.Max(l => l.Cells.Count);
+        if (merged)
+            warnings.Add($"« {sectionTitle} » : cellules fusionnees defusionnees automatiquement — verifiez le tableau.");
+        if (nested)
+            warnings.Add($"« {sectionTitle} » : tableau imbrique dans une cellule, remplace par son texte.");
+        if (bodyRows > 300 || columns > 20)
+            warnings.Add($"« {sectionTitle} » : tableau de {bodyRows} lignes et {columns} colonnes, refuse a l'import (max 300 lignes, 20 colonnes).");
+
+        var sb = new StringBuilder("<table>\n");
+        var caption = table.GetFirstChild<TableProperties>()?.GetFirstChild<TableCaption>()?.Val?.Value;
+        if (!string.IsNullOrWhiteSpace(caption))
+        {
+            sb.Append("<caption>").Append(EscapeHtml(NormalizeDashes(caption.Trim()))).Append("</caption>\n");
+        }
+
+        void AppendRows(bool header)
+        {
+            var group = lines.Where(l => l.Header == header).ToList();
+            if (group.Count == 0) return;
+
+            var (section, cellTag) = header ? ("thead", "th") : ("tbody", "td");
+            sb.Append('<').Append(section).Append(">\n");
+            foreach (var line in group)
+            {
+                sb.Append("<tr>");
+                foreach (var cell in line.Cells)
+                {
+                    sb.Append('<').Append(cellTag).Append('>').Append(cell).Append("</").Append(cellTag).Append('>');
+                }
+                sb.Append("</tr>\n");
+            }
+            sb.Append("</").Append(section).Append(">\n");
+        }
+
+        AppendRows(header: true);
+        AppendRows(header: false);
+        sb.Append("</table>\n");
+        return sb.ToString();
+    }
+
+    // Contenu d'une cellule : un paragraphe Word par ligne (<br> entre eux). Un tableau
+    // imbrique est aplati en texte, l'import ne les accepte pas.
+    private string RenderCell(TableCell cell, bool isHeader, ref bool nested)
+    {
+        var parts = new List<string>();
+        foreach (var child in cell.ChildElements)
+        {
+            if (child is Paragraph para)
+            {
+                var html = RenderRunsInline(para, allowBold: !isHeader).Trim();
+                if (html.Length > 0) parts.Add(html);
+            }
+            else if (child is Table inner)
+            {
+                nested = true;
+                parts.AddRange(inner.Descendants<Paragraph>()
+                    .Select(GetParagraphText)
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .Select(t => EscapeHtml(t.Trim())));
+            }
+        }
+        return string.Join("<br>", parts);
+    }
+
+    private static bool IsRepeatedHeaderRow(TableRow row)
+    {
+        var header = row.TableRowProperties?.GetFirstChild<TableHeader>();
+        return header != null && header.Val?.InnerText is not ("off" or "0" or "false");
+    }
+
+    private static bool IsWholeRowBold(TableRow row)
+    {
+        var runs = row.Descendants<Run>().Where(r => !string.IsNullOrWhiteSpace(GetRunText(r))).ToList();
+        return runs.Count > 0 && runs.All(IsRunBold);
     }
 
     private (bool Ordered, int Level)? GetListInfo(Paragraph para)
@@ -449,6 +666,9 @@ public class DocxParser
 
     private static string EscapeHtml(string text)
         => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
+
+    private static string EscapeAttribute(string text)
+        => EscapeHtml(text).Replace("\"", "&quot;");
 
     // Accumule le HTML d'une section, en regroupant les elements de liste consecutifs.
     private class ContentWriter

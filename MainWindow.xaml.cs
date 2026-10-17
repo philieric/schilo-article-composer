@@ -332,6 +332,13 @@ public partial class MainWindow : FluentWindow
             {
                 SectionsList.SelectedIndex = 0;
             }
+
+            if (result.Warnings.Count > 0)
+            {
+                MessageBox.Show(
+                    "Points a verifier avant l'export :\n\n" + string.Join("\n", result.Warnings.Distinct()),
+                    "Tableaux", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
         }
         catch (IOException)
         {
