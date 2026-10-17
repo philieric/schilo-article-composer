@@ -63,6 +63,23 @@ d'un autre titre, sans texte entre les deux. Sinon c'est l'ancien format
 (`—`, `–`) sort en tiret court `-`, dans les titres comme dans le contenu,
 pour les deux formats de document (`DocxParser.NormalizeDashes`).
 
+**Tableaux Word** (regle d'import de Schilo Builder fournie par Eric le
+2026-10-17, `DocxParser.RenderTable`) : chaque tableau sort a sa place dans le
+contenu de la section (forme 1 de la regle : `<p>avant</p><table>…</table><p>apres</p>`,
+l'import du theme en fait une section « Tableau »). Forme produite :
+- `<caption>` seulement si le tableau a un titre (Proprietes du tableau >
+  Texte de remplacement > Titre, `w:tblCaption`) ;
+- en-tete `<thead><tr><th>` : lignes « Repeter comme ligne d'en-tete », sinon
+  1re ligne toute en gras (cas de TOUS les tableaux DANxxx, aucun n'a l'option) ;
+- corps `<tbody><tr><td>` ; cellule = paragraphes joints par `<br>`, avec
+  `<strong>`/`<em>`/liens, `[bib]` conserve tel quel ;
+- aucun attribut (style, width, class) ; lignes vides retirees ;
+- fusions defusionnees automatiquement (valeur repetee en vertical, cellules
+  vides en horizontal), tableau imbrique aplati en texte, > 300 lignes ou
+  > 20 colonnes : signale par une alerte a l'ouverture du document.
+Les liens hypertexte (`w:hyperlink`) sont aussi rendus dans les paragraphes :
+leur texte etait perdu avant.
+
 Le format XML lui-meme est inchange (compatible avec l'import du theme).
 Export : une etude -> boite "Enregistrer sous" avec le nom propose ; plusieurs
 etudes -> choix d'un dossier, un fichier par etude. Dans la liste, les
